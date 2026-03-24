@@ -1,43 +1,120 @@
 version: '3.8'
+
 services:
+  # Base de données MySQL
   db:
     image: mysql:8.0
+    container_name: unguealhealth-db
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: rootpw
-      MYSQL_DATABASE: unguealhealth
-      MYSQL_USER: uh_user
-      MYSQL_PASSWORD: uh_pass
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpw}
+      MYSQL_DATABASE: ${DB_NAME:-unguealhealth}
+      MYSQL_USER: ${DB_USER:-uh_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-uh_pass}
     ports:
       - "3306:3306"
     volumes:
       - db_data:/var/lib/mysql
+      - ./backend/database_init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - unguealhealth-network
 
+  # Backend PHP
   backend:
-    image: php:8.2-cli
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: unguealhealth-backend
+    restart: unless-stopped
     working_dir: /var/www/backend
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-unguealhealth}
+      DB_USER: ${DB_USER:-uh_user}
+      DB_PASSWORD: ${DB_PASSWORD:-uh_pass}
+      IA_SERVICE_URL: http://ia:5000
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      APP_ENV: ${APP_ENV:-development}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
     volumes:
       - ./backend:/var/www/backend
+      - ./backend/uploads:/var/www/backend/uploads
     ports:
-      - "8000:8000"
-    command: php -S 0.0.0.0:8000 -t /var/www/backend
+      - "8080:8080"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    networks:
+      - unguealhealth-network
 
+  # Service IA Python
   ia:
-    build: ./ia
-    ports:
-      - "8001:8001"
+    build:
+      context: ./ia
+      dockerfile: Dockerfile
+    container_name: unguealhealth-ia
+    restart: unless-stopped
+    environment:
+      PYTHONUNBUFFERED: 1
+      MODEL_PATH: /app/models
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
       - ./ia:/app
-
-  frontend:
-    image: node:18-alpine
-    working_dir: /app
-    volumes:
-      - ./frontend:/app
+      - ./ia/models:/app/models
+      - ./backend/uploads:/app/uploads:ro
     ports:
-      - "3000:3000"
-    command: sh -c "npx http-server -p 3000 ./ -c-1"
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - unguealhealth-network
+
+  # Frontend statique
+  frontend:
+    image: nginx:alpine
+    container_name: unguealhealth-frontend
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - unguealhealth-network
+
+  # phpMyAdmin (optionnel - pour le développement)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: unguealhealth-phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpw}
+    ports:
+      - "8888:80"
+    depends_on:
+      - db
+    networks:
+      - unguealhealth-network
+    profiles:
+      - dev
 
 volumes:
   db_data:
+    driver: local
+
+networks:
+  unguealhealth-network:
+    driver: bridge
