@@ -1,28 +1,83 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>UnguealHealth — Prototype</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="UnguealHealth - Analyse intelligente de la sante de vos ongles par IA">
+    <meta name="theme-color" content="#0B6FA8">
+    <title>UnguealHealth - Analyse IA de la Sante des Ongles</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
-  </head>
-  <body>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E💅%3C/text%3E%3C/svg%3E">
+</head>
+<body>
     <div id="app">
-      <header>
-        <h1>UnguealHealth</h1>
-        <nav>
-          <a href="#/">Accueil</a> |
-          <a href="#/analyze">Analyser</a> |
-          <a href="#/history">Historique</a>
-        </nav>
-      </header>
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <a href="#/" class="logo">
+                    <span class="logo-icon">💅</span>
+                    <span class="logo-text">UnguealHealth</span>
+                </a>
+                <nav class="nav" id="mainNav">
+                    <a href="#/" class="nav-link" data-page="home">Accueil</a>
+                    <a href="#/analyze" class="nav-link" data-page="analyze">Analyser</a>
+                    <a href="#/history" class="nav-link" data-page="history">Historique</a>
+                    <a href="#/about" class="nav-link" data-page="about">A propos</a>
+                </nav>
+                <div class="header-actions" id="headerActions">
+                    <!-- Rempli par JS selon l'etat d'auth -->
+                </div>
+                <button class="menu-toggle" id="menuToggle" aria-label="Menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </header>
 
-      <main id="page"></main>
+        <!-- Main Content -->
+        <main id="page" class="main">
+            <!-- Contenu dynamique -->
+        </main>
 
-      <footer>
-        <small>&copy; UnguealHealth prototype</small>
-      </footer>
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <span class="logo-icon">💅</span>
+                    <span>UnguealHealth</span>
+                </div>
+                <p class="footer-disclaimer">
+                    Ce service est une aide informative et ne remplace pas un avis medical professionnel.
+                    En cas de doute, consultez un dermatologue.
+                </p>
+                <div class="footer-links">
+                    <a href="#/privacy">Confidentialite</a>
+                    <a href="#/terms">Conditions</a>
+                    <a href="#/contact">Contact</a>
+                </div>
+                <p class="footer-copy">&copy; 2024 UnguealHealth - Projet de sante numerique</p>
+            </div>
+        </footer>
+
+        <!-- Modal Auth -->
+        <div class="modal" id="authModal">
+            <div class="modal-overlay" data-close-modal></div>
+            <div class="modal-content">
+                <button class="modal-close" data-close-modal>&times;</button>
+                <div id="authModalContent">
+                    <!-- Contenu dynamique -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div class="toast-container" id="toastContainer"></div>
     </div>
+
     <script src="/js/app.js"></script>
-  </body>
+</body>
 </html>
