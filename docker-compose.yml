@@ -1,0 +1,43 @@
+version: '3.8'
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpw
+      MYSQL_DATABASE: unguealhealth
+      MYSQL_USER: uh_user
+      MYSQL_PASSWORD: uh_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  backend:
+    image: php:8.2-cli
+    working_dir: /var/www/backend
+    volumes:
+      - ./backend:/var/www/backend
+    ports:
+      - "8000:8000"
+    command: php -S 0.0.0.0:8000 -t /var/www/backend
+    depends_on:
+      - db
+
+  ia:
+    build: ./ia
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./ia:/app
+
+  frontend:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "3000:3000"
+    command: sh -c "npx http-server -p 3000 ./ -c-1"
+
+volumes:
+  db_data:
