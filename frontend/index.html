@@ -3,81 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="UnguealHealth - Analyse intelligente de la sante de vos ongles par IA">
-    <meta name="theme-color" content="#0B6FA8">
+    <meta name="description" content="UnguealHealth - Analyse intelligente de la sante de vos ongles par Intelligence Artificielle. Detection precoce des pathologies ungueales.">
+    <meta name="theme-color" content="#7C3AED">
+    <meta name="author" content="UnguealHealth">
+    <meta name="robots" content="index, follow">
+    
     <title>UnguealHealth - Analyse IA de la Sante des Ongles</title>
+    
+    <!-- Preconnect to Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E💅%3C/text%3E%3C/svg%3E">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- CSS - Modular Structure -->
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/layouts.css">
+    <link rel="stylesheet" href="css/utilities.css">
+    <!-- Page-specific CSS -->
+    <link rel="stylesheet" href="css/pages/landing.css">
+    <link rel="stylesheet" href="css/pages/auth.css">
+    <link rel="stylesheet" href="css/pages/dashboard.css">
+    <link rel="stylesheet" href="css/pages/analysis.css">
+    <link rel="stylesheet" href="css/pages/history.css">
+    <link rel="stylesheet" href="css/pages/profile.css">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%237C3AED'/%3E%3Cstop offset='100%25' stop-color='%2314B8A6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='20' fill='url(%23g)'/%3E%3Cpath d='M30 45 Q30 25 50 20 Q70 25 70 45 L70 75 Q70 80 65 82 L35 82 Q30 80 30 75 Z' fill='white' opacity='0.9'/%3E%3C/svg%3E">
 </head>
 <body>
+    <!-- Skip Link for Accessibility -->
+    <a href="#main-content" class="skip-link">Aller au contenu principal</a>
+    
     <div id="app">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <a href="#/" class="logo">
-                    <span class="logo-icon">💅</span>
-                    <span class="logo-text">UnguealHealth</span>
-                </a>
-                <nav class="nav" id="mainNav">
-                    <a href="#/" class="nav-link" data-page="home">Accueil</a>
-                    <a href="#/analyze" class="nav-link" data-page="analyze">Analyser</a>
-                    <a href="#/history" class="nav-link" data-page="history">Historique</a>
-                    <a href="#/about" class="nav-link" data-page="about">A propos</a>
-                </nav>
-                <div class="header-actions" id="headerActions">
-                    <!-- Rempli par JS selon l'etat d'auth -->
-                </div>
-                <button class="menu-toggle" id="menuToggle" aria-label="Menu">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </button>
-            </div>
-        </header>
-
-        <!-- Main Content -->
-        <main id="page" class="main">
-            <!-- Contenu dynamique -->
-        </main>
-
-        <!-- Footer -->
-        <footer class="footer">
-            <div class="footer-content">
-                <div class="footer-brand">
-                    <span class="logo-icon">💅</span>
-                    <span>UnguealHealth</span>
-                </div>
-                <p class="footer-disclaimer">
-                    Ce service est une aide informative et ne remplace pas un avis medical professionnel.
-                    En cas de doute, consultez un dermatologue.
-                </p>
-                <div class="footer-links">
-                    <a href="#/privacy">Confidentialite</a>
-                    <a href="#/terms">Conditions</a>
-                    <a href="#/contact">Contact</a>
-                </div>
-                <p class="footer-copy">&copy; 2024 UnguealHealth - Projet de sante numerique</p>
-            </div>
-        </footer>
-
-        <!-- Modal Auth -->
-        <div class="modal" id="authModal">
-            <div class="modal-overlay" data-close-modal></div>
-            <div class="modal-content">
-                <button class="modal-close" data-close-modal>&times;</button>
-                <div id="authModalContent">
-                    <!-- Contenu dynamique -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Toast Notifications -->
-        <div class="toast-container" id="toastContainer"></div>
+        <!-- Dynamic content rendered by JS -->
     </div>
 
-    <script type="module" src="/js/main.js"></script>
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="toast-container"></div>
+    
+    <!-- Modal Overlay Container -->
+    <div id="modal-container" class="modal-container"></div>
+    
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Main JS Module - ES6 Entry Point -->
+    <script type="module" src="js/main.js"></script>
 </body>
 </html>

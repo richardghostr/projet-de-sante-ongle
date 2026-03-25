@@ -16,433 +16,146 @@ const CONFIG = {
     THEME_KEY: 'unguealhealth_theme'
 };
 
-// ============================================
-// STATE MANAGEMENT
-// ============================================
-const AppState = {
-    user: null,
-    token: null,
-    currentPage: 'landing',
-    isLoading: false,
-    analyses: [],
-    currentAnalysis: null
-};
+/**
+ * Initialize the application
+ */
+export function initializeApp() {
+  console.log('[v0] Initializing UnguealHealth application...');
 
-// ============================================
-// UTILITY FUNCTIONS
-// ============================================
-const Utils = {
-    setStorage(key, value) {
-        localStorage.setItem(key, JSON.stringify(value));
-    },
+  // Setup routes
+  const router = AppRouter.getInstance();
 
-    getStorage(key) {
-        const item = localStorage.getItem(key);
-        try {
-            return item ? JSON.parse(item) : null;
-        } catch {
-            return null;
-        }
-    },
+  // Public routes
+  router.registerRoute('/', {
+    name: 'home',
+    component: LandingPage,
+    requiresAuth: false
+  });
 
-    removeStorage(key) {
-        localStorage.removeItem(key);
-    },
+  router.registerRoute('/about', {
+    name: 'about',
+    component: AboutPage,
+    requiresAuth: false
+  });
 
-    formatDate(dateString) {
-        if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        return date.toLocaleDateString('fr-FR', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    },
+  router.registerRoute('/contact', {
+    name: 'contact',
+    component: ContactPage,
+    requiresAuth: false
+  });
 
-    formatDateShort(dateString) {
-        if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        return date.toLocaleDateString('fr-FR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
-    },
+  router.registerRoute('/login', {
+    name: 'login',
+    component: LoginPage,
+    requiresAuth: false
+  });
 
-    debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    },
+  router.registerRoute('/register', {
+    name: 'register',
+    component: RegisterPage,
+    requiresAuth: false
+  });
 
-    isValidEmail(email) {
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    },
+  // Protected routes
+  router.registerRoute('/dashboard', {
+    name: 'dashboard',
+    component: DashboardPage,
+    requiresAuth: true
+  });
 
-    isValidPassword(password) {
-        return password && password.length >= 8;
-    },
+  router.registerRoute('/analyze', {
+    name: 'analyze',
+    component: AnalyzePage,
+    requiresAuth: true
+  });
 
-    getSeverityColor(severity) {
-        const colors = {
-            'faible': '#10B981',
-            'low': '#10B981',
-            'modere': '#F59E0B',
-            'moderate': '#F59E0B',
-            'eleve': '#EF4444',
-            'high': '#EF4444',
-            'critique': '#DC2626',
-            'critical': '#DC2626'
-        };
-        return colors[(severity || '').toLowerCase()] || '#6B7280';
-    },
+  router.registerRoute('/history', {
+    name: 'history',
+    component: HistoryPage,
+    requiresAuth: true
+  });
 
-    getSeverityClass(severity) {
-        const classes = {
-            'faible': 'severity-low',
-            'low': 'severity-low',
-            'modere': 'severity-medium',
-            'moderate': 'severity-medium',
-            'eleve': 'severity-high',
-            'high': 'severity-high',
-            'critique': 'severity-critical',
-            'critical': 'severity-critical'
-        };
-        return classes[(severity || '').toLowerCase()] || 'severity-unknown';
-    },
+  router.registerRoute('/profile', {
+    name: 'profile',
+    component: ProfilePage,
+    requiresAuth: true
+  });
 
-    formatFileSize(bytes) {
-        if (bytes < 1024) return bytes + ' B';
-        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-    }
-};
+  // Setup route change listener
+  router.onRouteChange((route) => {
+    console.log('[v0] Route changed to:', route);
+    renderPage(route);
+  });
 
-// ============================================
-// API SERVICE
-// ============================================
-const ApiService = {
-    async request(endpoint, options = {}) {
-        const url = `${CONFIG.API_BASE_URL}${endpoint}`;
-        
-        const defaultHeaders = {
-            'Accept': 'application/json'
-        };
+  // Check authentication status
+  checkAuthStatus();
 
-        if (AppState.token) {
-            defaultHeaders['Authorization'] = `Bearer ${AppState.token}`;
-        }
+  // Navigate to current hash or home
+  const currentHash = window.location.hash || '#/';
+  router.navigate(currentHash);
 
-        if (!(options.body instanceof FormData)) {
-            defaultHeaders['Content-Type'] = 'application/json';
-        }
+  // Listen for hash changes
+  window.addEventListener('hashchange', () => {
+    router.navigate(window.location.hash);
+  });
 
-        const config = {
-            ...options,
-            headers: {
-                ...defaultHeaders,
-                ...options.headers
-            }
-        };
+  console.log('[v0] Application initialized successfully');
+}
 
-        try {
-            UI.showLoading();
-            const response = await fetch(url, config);
-            const data = await response.json();
+/**
+ * Check authentication status and update app state
+ */
+function checkAuthStatus() {
+  const isAuthenticated = AuthService.isAuthenticated();
+  AppState.setState({
+    isAuthenticated,
+    user: isAuthenticated ? AuthService.getCurrentUser() : null
+  });
 
-            if (!response.ok) {
-                const err = new Error(data.message || data.error || 'Une erreur est survenue');
-                if (data.errors) err.details = data.errors;
-                throw err;
-            }
+  console.log('[v0] Auth status checked:', { isAuthenticated });
+}
 
-            return data;
-        } catch (error) {
-            console.error('API Error:', error);
-            throw error;
-        } finally {
-            UI.hideLoading();
-        }
-    },
+/**
+ * Render the page component
+ */
+function renderPage(route) {
+  // Check if route requires authentication
+  if (route.requiresAuth && !AuthService.isAuthenticated()) {
+    console.log('[v0] Access denied: route requires authentication');
+    window.location.hash = '#/login';
+    return;
+  }
 
-    // Auth endpoints
-    async register(userData) {
-        return this.request('/register', {
-            method: 'POST',
-            body: JSON.stringify(userData)
-        });
-    },
+  // Get app container
+  const appContainer = document.getElementById('app');
+  if (!appContainer) {
+    console.error('[v0] App container not found');
+    return;
+  }
 
-    async login(credentials) {
-        return this.request('/login', {
-            method: 'POST',
-            body: JSON.stringify(credentials)
-        });
-    },
+  // Clear previous content
+  appContainer.innerHTML = '';
 
-    async logout() {
-        return this.request('/logout', { method: 'POST' });
-    },
+  // Render the page
+  try {
+    const pageComponent = route.component;
+    const pageElement = pageComponent.render();
+    appContainer.appendChild(pageElement);
+    
+    // Scroll to top
+    window.scrollTo(0, 0);
+  } catch (error) {
+    console.error('[v0] Error rendering page:', error);
+    appContainer.innerHTML = '<div class="error-page"><p>Erreur lors du chargement de la page</p></div>';
+  }
+}
 
-    async forgotPassword(email) {
-        return this.request('/forgot-password', {
-            method: 'POST',
-            body: JSON.stringify({ email })
-        });
-    },
-
-    // Profile endpoints
-    async getProfile() {
-        return this.request('/profile', { method: 'GET' });
-    },
-
-    async updateProfile(profileData) {
-        return this.request('/profile', {
-            method: 'PUT',
-            body: JSON.stringify(profileData)
-        });
-    },
-
-    async changePassword(passwordData) {
-        return this.request('/change-password', {
-            method: 'PUT',
-            body: JSON.stringify(passwordData)
-        });
-    },
-
-    async deleteAccount() {
-        return this.request('/profile', { method: 'DELETE' });
-    },
-
-    // Analysis endpoints
-    async uploadImage(file) {
-        const formData = new FormData();
-        formData.append('image', file);
-        return this.request('/upload-image', {
-            method: 'POST',
-            body: formData
-        });
-    },
-
-    async analyzeImage(analysisId) {
-        return this.request('/analyze-image', {
-            method: 'POST',
-            body: JSON.stringify({ analysis_id: analysisId })
-        });
-    },
-
-    // History endpoints
-    async getHistory(page = 1, limit = 10) {
-        return this.request(`/history?page=${page}&limit=${limit}`, { method: 'GET' });
-    },
-
-    async getAnalysisDetail(analysisId) {
-        return this.request(`/history/${analysisId}`, { method: 'GET' });
-    },
-
-    async deleteAnalysis(analysisId) {
-        return this.request(`/history/${analysisId}`, { method: 'DELETE' });
-    },
-
-    async getStatistics() {
-        return this.request('/history/stats', { method: 'GET' });
-    },
-
-    async exportHistory(format = 'json') {
-        return this.request(`/history/export?format=${format}`, { method: 'GET' });
-    }
-};
-
-// ============================================
-// UI CONTROLLER
-// ============================================
-const UI = {
-    elements: {},
-
-    init() {
-        this.cacheElements();
-        this.bindGlobalEvents();
-        this.initTheme();
-    },
-
-    cacheElements() {
-        this.elements = {
-            app: document.getElementById('app'),
-            loadingOverlay: document.getElementById('loading-overlay'),
-            toastContainer: document.getElementById('toast-container')
-        };
-    },
-
-    bindGlobalEvents() {
-        window.addEventListener('hashchange', () => Router.handleRoute());
-        
-        document.addEventListener('click', (e) => {
-            // Close mobile menu on outside click
-            const mobileMenu = document.getElementById('mobile-menu');
-            const mobileBtn = document.getElementById('mobile-menu-btn');
-            if (mobileMenu?.classList.contains('active')) {
-                if (!mobileMenu.contains(e.target) && !mobileBtn?.contains(e.target)) {
-                    mobileMenu.classList.remove('active');
-                }
-            }
-
-            // Close sidebar on outside click (mobile)
-            const sidebar = document.querySelector('.sidebar');
-            const sidebarToggle = document.getElementById('sidebar-toggle');
-            if (sidebar?.classList.contains('active') && window.innerWidth < 1024) {
-                if (!sidebar.contains(e.target) && !sidebarToggle?.contains(e.target)) {
-                    sidebar.classList.remove('active');
-                }
-            }
-        });
-    },
-
-    initTheme() {
-        const savedTheme = Utils.getStorage(CONFIG.THEME_KEY);
-        if (savedTheme === 'dark') {
-            document.body.classList.add('dark-theme');
-        }
-    },
-
-    toggleTheme() {
-        document.body.classList.toggle('dark-theme');
-        const isDark = document.body.classList.contains('dark-theme');
-        Utils.setStorage(CONFIG.THEME_KEY, isDark ? 'dark' : 'light');
-        
-        // Update toggle if exists
-        const toggle = document.getElementById('dark-mode-toggle');
-        if (toggle) toggle.checked = isDark;
-    },
-
-    showLoading() {
-        AppState.isLoading = true;
-        let overlay = this.elements.loadingOverlay || document.getElementById('loading-overlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'loading-overlay';
-            overlay.innerHTML = '<div class="loading-spinner"></div>';
-            document.body.appendChild(overlay);
-            this.elements.loadingOverlay = overlay;
-        }
-        overlay.classList.add('active');
-    },
-
-    hideLoading() {
-        AppState.isLoading = false;
-        const overlay = this.elements.loadingOverlay || document.getElementById('loading-overlay');
-        if (overlay) overlay.classList.remove('active');
-    },
-
-    showToast(message, type = 'info', duration = 4000) {
-        let container = this.elements.toastContainer || document.getElementById('toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'toast-container';
-            document.body.appendChild(container);
-            this.elements.toastContainer = container;
-        }
-
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        
-        const icons = {
-            success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>',
-            error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
-            warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
-            info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
-        };
-
-        toast.innerHTML = `
-            <span class="toast-icon">${icons[type] || icons.info}</span>
-            <span class="toast-message">${message}</span>
-            <button class="toast-close" onclick="this.parentElement.remove()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-            </button>
-        `;
-
-        container.appendChild(toast);
-        requestAnimationFrame(() => toast.classList.add('show'));
-
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, duration);
-    },
-
-    showModal(content, options = {}) {
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.innerHTML = `
-            <div class="modal ${options.size || ''}">
-                ${options.title ? `
-                    <div class="modal-header">
-                        <h3>${options.title}</h3>
-                        <button class="modal-close" onclick="UI.closeModal(this)">&times;</button>
-                    </div>
-                ` : ''}
-                <div class="modal-body">${content}</div>
-                ${options.footer ? `<div class="modal-footer">${options.footer}</div>` : ''}
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-        requestAnimationFrame(() => modal.classList.add('active'));
-
-        if (!options.persistent) {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) this.closeModal(modal);
-            });
-        }
-
-        return modal;
-    },
-
-    closeModal(element) {
-        const modal = element.closest ? element.closest('.modal-overlay') : element;
-        if (modal) {
-            modal.classList.remove('active');
-            setTimeout(() => modal.remove(), 300);
-        }
-    },
-
-    showConfirm(message, onConfirm, onCancel) {
-        const modal = this.showModal(`<p>${message}</p>`, {
-            title: 'Confirmation',
-            footer: `
-                <button class="btn btn-secondary" id="modal-cancel">Annuler</button>
-                <button class="btn btn-danger" id="modal-confirm">Confirmer</button>
-            `,
-            persistent: true
-        });
-
-        modal.querySelector('#modal-confirm').addEventListener('click', () => {
-            this.closeModal(modal);
-            if (onConfirm) onConfirm();
-        });
-
-        modal.querySelector('#modal-cancel').addEventListener('click', () => {
-            this.closeModal(modal);
-            if (onCancel) onCancel();
-        });
-    },
-
-    render(pageContent) {
-        const app = this.elements.app || document.getElementById('app');
-        if (app) {
-            app.innerHTML = pageContent;
-        }
-    }
-};
+// Start the application when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+  initializeApp();
+}
 
 // ============================================
 // ROUTER
