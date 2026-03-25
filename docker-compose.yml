@@ -37,13 +37,17 @@ services:
       - ./ia:/app
 
   frontend:
-    image: node:18-alpine
-    working_dir: /main
-    volumes:
-      - ./frontend:/main
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8000/api
+    working_dir: /app
     ports:
       - "3000:3000"
-    command: sh -c "npx http-server -p 3000 ./ -c-1"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
+    depends_on:
+      - backend
 
 volumes:
   db_data:
