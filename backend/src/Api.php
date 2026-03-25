@@ -100,6 +100,11 @@ try {
         require_once __DIR__ . '/controllers/HistoryController.php';
         HistoryController::stats();
     }
+
+    elseif ($uri === '/history/export' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/HistoryController.php';
+        HistoryController::export();
+    }
     
     elseif (preg_match('#^/history/([a-zA-Z0-9-]+)$#', $uri, $matches) && $method === 'GET') {
         require_once __DIR__ . '/controllers/HistoryController.php';

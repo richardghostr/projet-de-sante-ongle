@@ -57,35 +57,33 @@ if (strpos($uri, '/api/') === 0 || strpos($uri, '/api') === 0) {
 
 // Servir les fichiers statiques (uploads, avatars, etc.)
 if (strpos($uri, '/storage/') === 0) {
-    $filePath = __DIR__ . $uri;
-    
-    if (file_exists($filePath) && is_file($filePath)) {
-        // Determiner le type MIME
+    $requested = __DIR__ . $uri;
+    $storageRoot = realpath(__DIR__ . '/storage');
+    $real = realpath($requested);
+
+    // Security: ensure resolved path is inside storage directory
+    if ($real && $storageRoot && str_starts_with($real, $storageRoot) && is_file($real)) {
+        $ext = strtolower(pathinfo($real, PATHINFO_EXTENSION));
         $mimeTypes = [
-            'jpg' => 'image/jpeg',
-            'jpeg' => 'image/jpeg',
-            'png' => 'image/png',
-            'webp' => 'image/webp',
-            'gif' => 'image/gif',
-            'json' => 'application/json',
+            'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp',
+            'gif' => 'image/gif', 'json' => 'application/json'
         ];
-        
-        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-        $mime = $mimeTypes[$ext] ?? mime_content_type($filePath);
-        
-        // Headers de cache pour les images
+        $mime = $mimeTypes[$ext] ?? mime_content_type($real);
+
         if (strpos($mime, 'image/') === 0) {
-            header('Cache-Control: public, max-age=31536000');
+            header('Cache-Control: public, max-age=31536000, immutable');
             header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT');
+        } else {
+            header('Cache-Control: no-cache');
         }
-        
+
         header('Content-Type: ' . $mime);
-        header('Content-Length: ' . filesize($filePath));
-        readfile($filePath);
+        header('Content-Length: ' . filesize($real));
+        readfile($real);
         exit;
     }
-    
-    Response::notFound('Fichier non trouve');
+
+    Response::notFound('Fichier non trouve ou acces non autorise');
 }
 
 // Documentation API simple

@@ -390,6 +390,51 @@ class HistoryController {
         
         Response::success($stats);
     }
+
+    /**
+     * GET /api/history/export?format=json|csv - Exporter l'historique de l'utilisateur
+     */
+    public static function export() {
+        $user = Auth::requireAuth();
+        $format = strtolower($_GET['format'] ?? 'json');
+
+        $pdo = get_db();
+        $records = [];
+
+        if ($pdo) {
+            $rows = db()->fetchAll('SELECT id, uuid, image_path, pathologie_label, score_confiance, niveau_risque, date_analyse FROM analyses WHERE user_id = ? ORDER BY date_analyse DESC', [$user['id']]);
+            $records = $rows ?: [];
+        } else {
+            $analysesFile = __DIR__ . '/../../storage/data/analyses.json';
+            if (file_exists($analysesFile)) {
+                $all = json_decode(file_get_contents($analysesFile), true) ?: [];
+                $records = array_values(array_filter($all, fn($a) => ($a['user_id'] ?? null) == $user['id']));
+            }
+        }
+
+        if ($format === 'csv') {
+            // Build CSV
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="unguealhealth_history_' . date('Ymd') . '.csv"');
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['id','uuid','image_path','pathologie_label','score_confiance','niveau_risque','date_analyse']);
+            foreach ($records as $r) {
+                fputcsv($out, [
+                    $r['id'] ?? '',
+                    $r['uuid'] ?? '',
+                    $r['image_path'] ?? '',
+                    $r['pathologie_label'] ?? '',
+                    $r['score_confiance'] ?? '',
+                    $r['niveau_risque'] ?? '',
+                    $r['date_analyse'] ?? ''
+                ]);
+            }
+            exit;
+        }
+
+        // Default JSON
+        Response::success(['records' => $records]);
+    }
     
     // ============================================
     // Private Helpers

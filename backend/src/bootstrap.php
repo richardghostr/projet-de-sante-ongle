@@ -493,16 +493,28 @@ function getRequestBody() {
 // ============================================
 function setCorsHeaders() {
     global $config;
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? '*';
-    
-    if (in_array('*', $config['cors']['allowed_origins']) || in_array($origin, $config['cors']['allowed_origins'])) {
-        header("Access-Control-Allow-Origin: $origin");
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+    // Normalize allowed origins
+    $allowed = array_map('trim', $config['cors']['allowed_origins']);
+
+    // If wildcard is allowed, echo wildcard but do not allow credentials with '*'
+    if (in_array('*', $allowed)) {
+        header('Access-Control-Allow-Origin: *');
+        header('Access-Control-Allow-Methods: ' . implode(', ', $config['cors']['allowed_methods']));
+        header('Access-Control-Allow-Headers: ' . implode(', ', $config['cors']['allowed_headers']));
+        header('Access-Control-Max-Age: 86400');
+    } else {
+        // Only allow specific origins and enable credentials
+        if ($origin && in_array($origin, $allowed)) {
+            header("Access-Control-Allow-Origin: $origin");
+            header('Vary: Origin');
+            header('Access-Control-Allow-Methods: ' . implode(', ', $config['cors']['allowed_methods']));
+            header('Access-Control-Allow-Headers: ' . implode(', ', $config['cors']['allowed_headers']));
+            header('Access-Control-Allow-Credentials: true');
+            header('Access-Control-Max-Age: 86400');
+        }
     }
-    
-    header('Access-Control-Allow-Methods: ' . implode(', ', $config['cors']['allowed_methods']));
-    header('Access-Control-Allow-Headers: ' . implode(', ', $config['cors']['allowed_headers']));
-    header('Access-Control-Allow-Credentials: true');
-    header('Access-Control-Max-Age: 86400');
 }
 
 setCorsHeaders();
