@@ -1,11 +1,11 @@
-import { useState, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { api } from '@/lib/api';
-import { Navbar } from '@/components/Navbar';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useRef, useCallback } from "react";
+import { Link } from "react-router-dom";
+import { api } from "@/lib/api";
+import { Navbar } from "@/components/Navbar";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
 import {
   Upload,
   X,
@@ -14,10 +14,10 @@ import {
   AlertCircle,
   CheckCircle,
   Activity,
-} from 'lucide-react';
+} from "lucide-react";
 
 const MAX_SIZE = 10 * 1024 * 1024;
-const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
+const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 
 type AnalysisResult = {
   diagnostic?: string;
@@ -35,25 +35,45 @@ const Analyze = () => {
 
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [step, setStep] = useState<'upload' | 'analyzing' | 'results'>('upload');
+  const [step, setStep] = useState<"upload" | "analyzing" | "results">(
+    "upload",
+  );
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [uploadResponse, setUploadResponse] = useState<any | null>(null);
+  // 1. Define the interface at the top of your file
+  interface UploadResponse {
+    analysis_id?: string;
+    id?: string;
+    uuid?: string;
+    data?: {
+      analysis_id?: string;
+      id?: string;
+      uuid?: string;
+      data?: {
+        analysis_id?: string;
+      };
+    };
+  }
+
+  // 2. Use it in your useState
+  const [uploadResponse, setUploadResponse] = useState<UploadResponse | null>(
+    null,
+  );
 
   const handleFile = useCallback(
     (f: File) => {
       if (!ALLOWED.includes(f.type)) {
         toast({
-          title: 'Format non supporté',
-          variant: 'destructive',
+          title: "Format non supporté",
+          variant: "destructive",
         });
         return;
       }
 
       if (f.size > MAX_SIZE) {
         toast({
-          title: 'Fichier trop volumineux (max 10MB)',
-          variant: 'destructive',
+          title: "Fichier trop volumineux (max 10MB)",
+          variant: "destructive",
         });
         return;
       }
@@ -63,20 +83,20 @@ const Analyze = () => {
       const reader = new FileReader();
 
       reader.onload = () => {
-        if (typeof reader.result === 'string') {
+        if (typeof reader.result === "string") {
           setPreview(reader.result);
         }
       };
 
       reader.readAsDataURL(f);
     },
-    [toast]
+    [toast],
   );
 
   const reset = () => {
     setFile(null);
     setPreview(null);
-    setStep('upload');
+    setStep("upload");
     setProgress(0);
     setResult(null);
   };
@@ -84,7 +104,7 @@ const Analyze = () => {
   const startAnalysis = async () => {
     if (!file) return;
 
-    setStep('analyzing');
+    setStep("analyzing");
     setProgress(0);
 
     const progressInterval = setInterval(() => {
@@ -109,12 +129,12 @@ const Analyze = () => {
         clearInterval(progressInterval);
 
         toast({
-          title: 'Erreur',
+          title: "Erreur",
           description: "Impossible de récupérer l'identifiant d'analyse.",
-          variant: 'destructive',
+          variant: "destructive",
         });
 
-        setStep('upload');
+        setStep("upload");
         return;
       }
 
@@ -125,34 +145,34 @@ const Analyze = () => {
 
       setTimeout(() => {
         setResult(analysisRes.data || analysisRes);
-        setStep('results');
+        setStep("results");
       }, 500);
     } catch (err: unknown) {
       clearInterval(progressInterval);
 
       const message =
-        err instanceof Error ? err.message : 'Une erreur inconnue est survenue';
+        err instanceof Error ? err.message : "Une erreur inconnue est survenue";
 
       toast({
-        title: 'Erreur',
+        title: "Erreur",
         description: message,
-        variant: 'destructive',
+        variant: "destructive",
       });
 
-      setStep('upload');
+      setStep("upload");
     }
   };
 
   const riskColor = (risk: string) => {
     const map: Record<string, string> = {
-      sain: 'text-emerald-600 bg-emerald-50',
-      bas: 'text-blue-600 bg-blue-50',
-      modere: 'text-amber-600 bg-amber-50',
-      eleve: 'text-orange-600 bg-orange-50',
-      critique: 'text-red-600 bg-red-50',
+      sain: "text-emerald-600 bg-emerald-50",
+      bas: "text-blue-600 bg-blue-50",
+      modere: "text-amber-600 bg-amber-50",
+      eleve: "text-orange-600 bg-orange-50",
+      critique: "text-red-600 bg-red-50",
     };
 
-    return map[risk] || 'text-muted-foreground bg-muted';
+    return map[risk] || "text-muted-foreground bg-muted";
   };
 
   return (
@@ -166,7 +186,7 @@ const Analyze = () => {
             Uploadez une photo de votre ongle pour obtenir un diagnostic IA
           </p>
 
-          {step === 'upload' && (
+          {step === "upload" && (
             <Card className="shadow-sm">
               <CardContent className="p-6">
                 {!preview ? (
@@ -174,14 +194,23 @@ const Analyze = () => {
                     onClick={() => inputRef.current?.click()}
                     onDragOver={(e) => {
                       e.preventDefault();
-                      e.currentTarget.classList.add('border-primary', 'bg-accent');
+                      e.currentTarget.classList.add(
+                        "border-primary",
+                        "bg-accent",
+                      );
                     }}
                     onDragLeave={(e) => {
-                      e.currentTarget.classList.remove('border-primary', 'bg-accent');
+                      e.currentTarget.classList.remove(
+                        "border-primary",
+                        "bg-accent",
+                      );
                     }}
                     onDrop={(e) => {
                       e.preventDefault();
-                      e.currentTarget.classList.remove('border-primary', 'bg-accent');
+                      e.currentTarget.classList.remove(
+                        "border-primary",
+                        "bg-accent",
+                      );
 
                       const droppedFile = e.dataTransfer.files[0];
                       if (droppedFile) handleFile(droppedFile);
@@ -193,17 +222,19 @@ const Analyze = () => {
                     </div>
 
                     <div className="text-center">
-                      <p className="font-medium">Glissez-déposez votre image ici</p>
+                      <p className="font-medium">
+                        Glissez-déposez votre image ici
+                      </p>
                       <p className="text-sm text-muted-foreground">
                         ou cliquez pour sélectionner (JPG, PNG, WebP — max 10MB)
                       </p>
                     </div>
-
                     <input
                       ref={inputRef}
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
                       className="hidden"
+                      aria-label="Uploader une image d'ongle" // Add this
                       onChange={(e) => {
                         const selectedFile = e.target.files?.[0];
                         if (selectedFile) handleFile(selectedFile);
@@ -220,9 +251,10 @@ const Analyze = () => {
                         style={{ maxHeight: 400 }}
                       />
 
-                      <button 
+                      <button
                         onClick={reset}
                         className="absolute right-3 top-3 rounded-full bg-background/80 p-2 backdrop-blur-sm hover:bg-background"
+                        aria-label="Supprimer l'image" // Add this
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -231,7 +263,9 @@ const Analyze = () => {
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <span>{file?.name}</span>
                       <span>
-                        {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : ''}
+                        {file
+                          ? `${(file.size / 1024 / 1024).toFixed(2)} MB`
+                          : ""}
                       </span>
                     </div>
 
@@ -249,7 +283,7 @@ const Analyze = () => {
             </Card>
           )}
 
-          {step === 'analyzing' && (
+          {step === "analyzing" && (
             <Card className="shadow-sm">
               <CardContent className="flex flex-col items-center gap-6 p-12">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -273,7 +307,7 @@ const Analyze = () => {
             </Card>
           )}
 
-          {step === 'results' && result && (
+          {step === "results" && result && (
             <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle>Résultats de l'analyse</CardTitle>
@@ -293,27 +327,33 @@ const Analyze = () => {
 
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="rounded-xl border p-4 text-center">
-                    <p className="mb-1 text-xs text-muted-foreground">Diagnostic</p>
+                    <p className="mb-1 text-xs text-muted-foreground">
+                      Diagnostic
+                    </p>
                     <p className="text-sm font-semibold">
-                      {result.result?.pathologie || result.diagnostic || '—'}
+                      {result.result?.pathologie || result.diagnostic || "—"}
                     </p>
                   </div>
 
                   <div className="rounded-xl border p-4 text-center">
-                    <p className="mb-1 text-xs text-muted-foreground">Confiance</p>
+                    <p className="mb-1 text-xs text-muted-foreground">
+                      Confiance
+                    </p>
                     <p className="text-sm font-semibold">
                       {Math.round((result.result?.score_confiance || 0) * 100)}%
                     </p>
                   </div>
 
                   <div className="rounded-xl border p-4 text-center">
-                    <p className="mb-1 text-xs text-muted-foreground">Sévérité</p>
+                    <p className="mb-1 text-xs text-muted-foreground">
+                      Sévérité
+                    </p>
                     <span
                       className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${riskColor(
-                        result.result?.niveau_risque || ''
+                        result.result?.niveau_risque || "",
                       )}`}
                     >
-                      {result.result?.niveau_risque || '—'}
+                      {result.result?.niveau_risque || "—"}
                     </span>
                   </div>
                 </div>
@@ -322,8 +362,12 @@ const Analyze = () => {
           )}
           {uploadResponse && (
             <div className="mt-4 rounded border bg-background p-3">
-              <h3 className="mb-2 text-sm font-medium">Debug upload response</h3>
-              <pre className="max-h-48 overflow-auto text-xs">{JSON.stringify(uploadResponse, null, 2)}</pre>
+              <h3 className="mb-2 text-sm font-medium">
+                Debug upload response
+              </h3>
+              <pre className="max-h-48 overflow-auto text-xs">
+                {JSON.stringify(uploadResponse, null, 2)}
+              </pre>
             </div>
           )}
         </div>
