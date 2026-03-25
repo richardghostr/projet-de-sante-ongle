@@ -6,7 +6,7 @@
 import { dom } from '../utils/dom.js';
 import { NavComponent } from '../components/nav.js';
 import { UIComponents } from '../components/ui.js';
-import { APIService } from '../services/api.js';
+import { ApiService } from '../services/api.js';
 
 export const AnalyzePage = {
   render() {
@@ -209,7 +209,7 @@ export const AnalyzePage = {
 
       try {
         // Simulate API call to Python server
-        const result = await APIService.analyzeImage(imageData);
+        const result = await ApiService.analyzeImage(imageData);
 
         console.log('[v0] Analysis result:', result);
 

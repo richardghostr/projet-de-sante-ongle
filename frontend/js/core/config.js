@@ -5,7 +5,9 @@
 
 export const CONFIG = {
     // API Configuration
-    API_BASE_URL: '/api',
+    // In development the frontend is served on :3000 while the PHP backend runs on :8000.
+    // Use the backend full URL so requests are routed to the API server (avoids http-server 405 on POST).
+    API_BASE_URL: 'http://localhost:8000/api',
     IA_URL: '/api/ia',
     
     // File Upload

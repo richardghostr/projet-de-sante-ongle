@@ -66,7 +66,7 @@ export const UIComponents = {
    */
   badge(text, options = {}) {
     return dom.createElement('span', {
-      classes: ['badge', `badge-${options.variant || 'primary'}', options.className].filter(Boolean),
+      classes: ['badge', `badge-${options.variant || 'primary'}`, options.className].filter(Boolean),
       text
     });
   },

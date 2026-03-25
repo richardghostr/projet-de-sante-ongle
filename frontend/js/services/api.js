@@ -44,15 +44,27 @@ class ApiClient {
             State.set({ isLoading: true });
             
             const response = await fetch(url, config);
-            const data = await response.json();
-            
+
+            // Safely parse JSON only when present and JSON content-type
+            let data = null;
+            const contentType = response.headers.get('content-type') || '';
+            if (response.status !== 204 && contentType.includes('application/json')) {
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    // Empty body or invalid JSON — leave data as null
+                    data = null;
+                }
+            }
+
             if (!response.ok) {
-                const error = new Error(data.message || data.error || 'Une erreur est survenue');
+                const msg = (data && (data.message || data.error)) || response.statusText || 'Une erreur est survenue';
+                const error = new Error(msg);
                 error.status = response.status;
-                error.details = data.errors;
+                if (data && data.errors) error.details = data.errors;
                 throw error;
             }
-            
+
             return data;
         } catch (error) {
             // Handle network errors

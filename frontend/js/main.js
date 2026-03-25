@@ -3,9 +3,13 @@
  * Initializes and manages the complete application lifecycle
  */
 
-import { AppRouter } from './core/router.js';
+import Router from './core/router.js';
 import { AppState } from './core/state.js';
 import { AuthService } from './services/auth.js';
+import { ApiService } from './services/api.js';
+import { UI } from './ui.js';
+import { Forms } from './forms.js';
+import { Components } from './components.js';
 
 // Import pages
 import { LandingPage } from './pages/landing.js';
@@ -23,8 +27,17 @@ import { ProfilePage } from './pages/profile.js';
  */
 class UnguealHealthApp {
   constructor() {
-    this.router = AppRouter.getInstance();
+    this.router = Router;
     this.isInitialized = false;
+  }
+  
+  /**
+   * Ensure router is initialized (attach listeners)
+   */
+  ensureRouter() {
+    if (this.router && typeof this.router.init === 'function') {
+      this.router.init();
+    }
   }
 
   /**
@@ -45,6 +58,9 @@ class UnguealHealthApp {
 
       // Setup event listeners
       this.setupEventListeners();
+
+      // Ensure router has its listeners attached
+      this.ensureRouter();
 
       // Navigate to initial route
       await this.router.navigate(window.location.hash || '#/');
@@ -92,7 +108,7 @@ class UnguealHealthApp {
     const isAuthenticated = AuthService.isAuthenticated();
     const user = isAuthenticated ? AuthService.getCurrentUser() : null;
 
-    AppState.setState({
+    AppState.set({
       isAuthenticated,
       user
     });
@@ -170,13 +186,8 @@ class UnguealHealthApp {
    * Setup global event listeners
    */
   setupEventListeners() {
-    // Handle hash changes
-    window.addEventListener('hashchange', () => {
-      this.router.navigate(window.location.hash);
-    });
-
     // Handle auth state changes
-    AppState.onChange((newState) => {
+    AppState.subscribeAll((changes, newState) => {
       console.log('[v0] State changed:', newState);
       if (newState.isAuthenticated !== undefined) {
         this.onAuthChange(newState.isAuthenticated);
@@ -248,9 +259,21 @@ class UnguealHealthApp {
   onAuthChange(isAuthenticated) {
     if (isAuthenticated) {
       console.log('[v0] User authenticated');
-    } else {
-      console.log('[v0] User logged out');
-      window.location.hash = '#/';
+      return;
+    }
+
+    console.log('[v0] User logged out');
+
+    // Don't force navigation during initial bootstrap
+    if (!this.isInitialized) return;
+
+    // Only redirect to public page if the current route requires auth
+    const current = this.router && typeof this.router.getCurrentRoute === 'function'
+      ? this.router.getCurrentRoute()
+      : null;
+
+    if (current && current.requiresAuth) {
+      window.location.hash = '#/login';
     }
   }
 
@@ -276,7 +299,10 @@ class UnguealHealthApp {
  */
 function startApp() {
   const app = new UnguealHealthApp();
+  // expose router once created
   app.initialize();
+  window.Router = app.router;
+  window.App = app;
 }
 
 // Start app
@@ -285,3 +311,53 @@ if (document.readyState === 'loading') {
 } else {
   startApp();
 }
+
+// --- Legacy compatibility shims ---
+function mountPage(module, params) {
+  try {
+    const el = module && module.render ? module.render(params) : null;
+    const appEl = document.getElementById('app');
+    if (!appEl) return;
+    if (el instanceof Element) {
+      appEl.innerHTML = '';
+      appEl.appendChild(el);
+    } else if (typeof el === 'string') {
+      appEl.innerHTML = el;
+    }
+  } catch (e) {
+    console.error('Error mounting page', e);
+  }
+}
+
+window.Auth = AuthService;
+window.AppState = AppState;
+window.ApiService = ApiService;
+window.UI = UI;
+window.Forms = Forms;
+window.Components = Components;
+
+window.Pages = {
+  landing: () => mountPage(LandingPage),
+  about: () => mountPage(AboutPage),
+  contact: () => mountPage(ContactPage),
+  login: () => mountPage(LoginPage),
+  register: () => mountPage(RegisterPage),
+  dashboard: () => mountPage(DashboardPage),
+  analyze: () => mountPage(AnalyzePage),
+  history: () => mountPage(HistoryPage),
+  profile: () => mountPage(ProfilePage),
+  notFound: () => { const appEl = document.getElementById('app'); if (appEl) appEl.innerHTML = '<div class="error-page"><h1>404</h1><p>Page non trouvee</p></div>'; }
+};
+
+// keep default export compatibility
+export const Globals = {
+  Auth: AuthService,
+  AppState,
+  ApiService,
+  UI,
+  Forms,
+  Components,
+  Pages,
+  Router: window.Router,
+  App: window.App
+};

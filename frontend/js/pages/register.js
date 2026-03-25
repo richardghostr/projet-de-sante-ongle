@@ -155,7 +155,15 @@ export const RegisterPage = {
       submitBtn.disabled = true;
 
       try {
-        const result = await AuthService.register(name, email, password);
+        // Build payload matching backend field names
+        const payload = {
+          nom: name,
+          email,
+          password,
+          consent_data: acceptedTerms ? 1 : 0
+        };
+
+        const result = await AuthService.register(payload);
         
         if (result.success) {
           UIComponents.toast('Inscription réussie! Redirection...', { type: 'success' });

@@ -21,11 +21,22 @@ export const ApiService = {
             if (window.UI && typeof window.UI.showLoading === 'function') window.UI.showLoading();
 
             const response = await fetch(url, config);
-            const data = await response.json();
+
+            // Parse JSON only when Content-Type indicates JSON and body present
+            let data = null;
+            const contentType = response.headers.get('content-type') || '';
+            if (response.status !== 204 && contentType.includes('application/json')) {
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = null;
+                }
+            }
 
             if (!response.ok) {
-                const err = new Error(data.message || data.error || 'Une erreur est survenue');
-                if (data.errors) err.details = data.errors;
+                const errMsg = (data && (data.message || data.error)) || response.statusText || 'Une erreur est survenue';
+                const err = new Error(errMsg);
+                if (data && data.errors) err.details = data.errors;
                 throw err;
             }
 

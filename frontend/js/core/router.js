@@ -54,17 +54,24 @@ class AppRouter {
      * Navigate to a route
      */
     navigate(route, params = {}) {
-        let hash = route;
-        
+        let raw = route || '';
+
+        // Strip leading '#' if present
+        if (raw.startsWith('#')) raw = raw.slice(1);
+
+        // Ensure route starts with a single '/'
+        if (!raw.startsWith('/')) raw = `/${raw}`;
+
         // Add params to hash if provided
         if (Object.keys(params).length > 0) {
             const paramStr = Object.entries(params)
                 .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
                 .join('&');
-            hash = `${route}?${paramStr}`;
+            raw = `${raw}?${paramStr}`;
         }
-        
-        window.location.hash = hash;
+
+        // Always assign a hash string beginning with '#'
+        window.location.hash = raw.startsWith('#') ? raw : `#${raw}`;
     }
     
     /**
@@ -85,9 +92,12 @@ class AppRouter {
      * Parse the current hash
      */
     parseHash() {
-        const hash = window.location.hash.slice(1) || '';
+        const hash = (window.location.hash || '').slice(1) || '';
         const [pathWithParams] = hash.split('?');
-        const [route, ...pathParams] = pathWithParams.split('/');
+
+        // Remove leading slashes so "/about" and "about" are treated the same
+        const cleaned = (pathWithParams || '').replace(/^\/+/g, '');
+        const [route, ...pathParams] = cleaned.split('/');
         
         // Parse query params if any
         const queryString = hash.includes('?') ? hash.split('?')[1] : '';
@@ -129,19 +139,33 @@ class AppRouter {
             return;
         }
         
+        // Build a normalized route key (strip leading slashes)
+        const normalizedRoute = (route || '').replace(/^\/+/, '');
+
+        // Resolve registered route if present
+        const registered = this.routes.get(normalizedRoute);
+
+        const routeObj = {
+            route: normalizedRoute,
+            name: registered?.name || pageName,
+            component: registered?.component || null,
+            requiresAuth: !!registered?.requiresAuth,
+            pathParams,
+            queryParams
+        };
+
         // Update state
-        this.currentRoute = { route, pageName, pathParams, queryParams };
+        this.currentRoute = routeObj;
         State.set({
-            currentPage: pageName,
+            currentPage: routeObj.name,
             currentParams: pathParams
         });
-        
-        // Load and render the page
-        await this._loadPage(pageName, pathParams, queryParams);
-        
-        // Run after hooks
+
+        // Do NOT auto-render here; allow consumers (eg. main.js) to render via onRouteChange hooks.
+
+        // Run after hooks (pass route object)
         for (const hook of this.afterHooks) {
-            await hook(route, pageName);
+            await hook(routeObj);
         }
         
         // Scroll to top
@@ -244,6 +268,25 @@ class AppRouter {
      */
     afterEach(hook) {
         this.afterHooks.push(hook);
+        return this;
+    }
+
+    /**
+     * Register a route with optional metadata (component, requiresAuth, name)
+     * Path may be provided with or without a leading '/'.
+     */
+    registerRoute(path, config = {}) {
+        const key = (path || '').toString().replace(/^\/+/, '').replace(/\s+/g, '');
+        this.routes.set(key, config);
+        return this;
+    }
+
+    /**
+     * Register a callback to run when the current route changes. The callback
+     * receives a route object: { route, name, component, requiresAuth, pathParams, queryParams }.
+     */
+    onRouteChange(cb) {
+        this.afterHooks.push(cb);
         return this;
     }
     

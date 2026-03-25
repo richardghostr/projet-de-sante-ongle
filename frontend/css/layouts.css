@@ -415,9 +415,21 @@
   transition: all var(--transition-base);
 }
 
+/* Prevent hidden overlays from intercepting pointer events */
+.modal-overlay,
+.loading-overlay {
+  pointer-events: none;
+}
+
 .modal-overlay.active {
   opacity: 1;
   visibility: visible;
+}
+
+/* Only allow pointer events when active */
+.modal-overlay.active,
+.loading-overlay.active {
+  pointer-events: auto;
 }
 
 .modal {

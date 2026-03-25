@@ -28,7 +28,9 @@ export const dom = {
     
     if (options.attrs) {
       for (const [key, value] of Object.entries(options.attrs)) {
-        el.setAttribute(key, value);
+        // Only set attributes with a defined, non-null value
+        if (value === undefined || value === null) continue;
+        el.setAttribute(key, String(value));
       }
     }
     
