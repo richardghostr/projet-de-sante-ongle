@@ -25,7 +25,6 @@ services:
       - DB_NAME=unguealhealth
       - DB_USER=uh_user
       - DB_PASS=uh_pass
-      - JWT_SECRET=${JWT_SECRET}
     ports:
       - "8000:8000"
     command: sh -c "sh /var/www/backend/scripts/ensure_db.sh && php -S 0.0.0.0:8000 -t /var/www/backend"
