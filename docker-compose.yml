@@ -11,6 +11,8 @@ services:
       - "3307:3306"
     volumes:
       - db_data:/var/lib/mysql
+      # Initialize database on first startup using the provided schema
+      - ./backend/database_init.sql:/docker-entrypoint-initdb.d/00_database_init.sql:ro
 
   backend:
     build: ./backend
@@ -25,7 +27,7 @@ services:
       - DB_PASS=uh_pass
     ports:
       - "8000:8000"
-    command: php -S 0.0.0.0:8000 -t /var/www/backend
+    command: sh -c "sh /var/www/backend/scripts/ensure_db.sh && php -S 0.0.0.0:8000 -t /var/www/backend"
     depends_on:
       - db
 

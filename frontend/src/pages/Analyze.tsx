@@ -96,13 +96,14 @@ const Analyze = () => {
       setUploadResponse(uploadRes);
 
       const analysisId =
-        uploadRes.analysis_id ??
-        uploadRes.data?.analysis_id ??
-        uploadRes.data?.data?.analysis_id ??
-        uploadRes.id ??
-        uploadRes.data?.id ??
-        uploadRes.uuid ??
-        uploadRes.data?.uuid;
+        uploadRes?.analysis_id ||
+        uploadRes?.data?.analysis_id ||
+        uploadRes?.data?.data?.analysis_id ||
+        uploadRes?.id ||
+        uploadRes?.data?.id ||
+        uploadRes?.uuid ||
+        uploadRes?.data?.uuid ||
+        null;
 
       if (!analysisId) {
         clearInterval(progressInterval);

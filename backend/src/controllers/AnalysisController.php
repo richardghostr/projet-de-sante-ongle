@@ -127,6 +127,10 @@ class AnalysisController {
     public static function analyze() {
         global $config;
         
+        // Debug: log incoming request body and POST for troubleshooting
+        $rawBody = file_get_contents('php://input');
+        Logger::info('Analyze endpoint called', ['raw_body' => $rawBody, 'post' => $_POST]);
+
         $data = getRequestBody();
         
         // Accepter soit analysis_id soit uuid
@@ -393,7 +397,20 @@ class AnalysisController {
     private static function saveAnalysis($data) {
         $pdo = get_db();
         if ($pdo) {
-            return db()->insert('analyses', $data);
+            // Sanitize user_id to avoid foreign key constraint errors
+            if (isset($data['user_id'])) {
+                $uid = $data['user_id'];
+                // If user_id is not numeric or not present in users table, set to null
+                if (!is_numeric($uid) || !db()->fetchOne('SELECT id FROM users WHERE id = ?', [$uid])) {
+                    $data['user_id'] = null;
+                }
+            }
+
+            $insertId = db()->insert('analyses', $data);
+            if ($insertId !== false) {
+                return $insertId;
+            }
+            // If DB insert failed (constraint or other), fallback to file storage below
         }
         
         // Fallback fichier
