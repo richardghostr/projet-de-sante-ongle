@@ -1,4 +1,7 @@
 #!/bin/sh
+
+# POSIX-safe script to ensure database schema exists.
+# Normalized to LF line endings to avoid /bin/sh parsing issues on Windows-hosted repos.
 set -e
 
 # Wait for DB to be reachable
