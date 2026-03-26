@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64" role="img" aria-label="UnguealHealth logo">
+  <rect width="64" height="64" rx="8" fill="#ffffff"/>
+  <g transform="translate(8,8)">
+    <ellipse cx="24" cy="20" rx="14" ry="10" fill="#0077b6"/>
+    <rect x="14" y="10" width="20" height="4" rx="2" fill="#90e0ef" transform="rotate(-25 24 12)"/>
+    <path d="M28 34c-6 0-10-4-12-6" stroke="#023e8a" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <circle cx="28" cy="14" r="3" fill="#caf0f8"/>
+  </g>
+</svg>

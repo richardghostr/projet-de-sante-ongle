@@ -7,3 +7,4 @@
 /ia/__pycache__/
 /ia/.venv/
 /backend/storage/
+backend\scripts\ensure_db.sh
