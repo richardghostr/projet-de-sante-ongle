@@ -228,6 +228,188 @@ try {
     }
     
     // ============================================
+    // Routes Admin (role: admin)
+    // ============================================
+    
+    elseif ($uri === '/admin/dashboard' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/AdminController.php';
+        AdminController::dashboard();
+    }
+    
+    elseif ($uri === '/admin/users' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/AdminController.php';
+        AdminController::listUsers();
+    }
+    
+    elseif (preg_match('#^/admin/users/(\d+)$#', $uri, $matches) && $method === 'GET') {
+        require_once __DIR__ . '/controllers/AdminController.php';
+        AdminController::getUser($matches[1]);
+    }
+    
+    elseif (preg_match('#^/admin/users/(\d+)/role$#', $uri, $matches) && $method === 'PUT') {
+        require_once __DIR__ . '/controllers/AdminController.php';
+        AdminController::updateUserRole($matches[1]);
+    }
+    
+    elseif (preg_match('#^/admin/users/(\d+)/status$#', $uri, $matches) && $method === 'PUT') {
+        require_once __DIR__ . '/controllers/AdminController.php';
+        AdminController::updateUserStatus($matches[1]);
+    }
+    
+    elseif (preg_match('#^/admin/users/(\d+)/verify$#', $uri, $matches) && $method === 'POST') {
+        require_once __DIR__ . '/controllers/AdminController.php';
+        AdminController::verifyProfessional($matches[1]);
+    }
+    
+    elseif ($uri === '/admin/analyses' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/AdminController.php';
+        AdminController::listAnalyses();
+    }
+    
+    elseif ($uri === '/admin/feedback' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/AdminController.php';
+        AdminController::listFeedback();
+    }
+    
+    elseif (preg_match('#^/admin/feedback/(\d+)$#', $uri, $matches) && $method === 'PUT') {
+        require_once __DIR__ . '/controllers/AdminController.php';
+        AdminController::updateFeedback($matches[1]);
+    }
+    
+    elseif ($uri === '/admin/logs' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/AdminController.php';
+        AdminController::getLogs();
+    }
+    
+    // ============================================
+    // Routes Professional (role: professional, admin)
+    // ============================================
+    
+    elseif ($uri === '/professional/dashboard' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/ProfessionalController.php';
+        ProfessionalController::dashboard();
+    }
+    
+    elseif ($uri === '/professional/patients' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/ProfessionalController.php';
+        ProfessionalController::listPatients();
+    }
+    
+    elseif ($uri === '/professional/requests' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/ProfessionalController.php';
+        ProfessionalController::pendingRequests();
+    }
+    
+    elseif (preg_match('#^/professional/requests/(\d+)$#', $uri, $matches) && $method === 'PUT') {
+        require_once __DIR__ . '/controllers/ProfessionalController.php';
+        ProfessionalController::handleLinkRequest($matches[1]);
+    }
+    
+    elseif ($uri === '/professional/invite' && $method === 'POST') {
+        require_once __DIR__ . '/controllers/ProfessionalController.php';
+        ProfessionalController::invitePatient();
+    }
+    
+    elseif (preg_match('#^/professional/patients/(\d+)$#', $uri, $matches) && $method === 'GET') {
+        require_once __DIR__ . '/controllers/ProfessionalController.php';
+        ProfessionalController::getPatientDossier($matches[1]);
+    }
+    
+    elseif ($uri === '/professional/notes' && $method === 'POST') {
+        require_once __DIR__ . '/controllers/ProfessionalController.php';
+        ProfessionalController::addNote();
+    }
+    
+    elseif (preg_match('#^/professional/notes/(\d+)$#', $uri, $matches) && $method === 'PUT') {
+        require_once __DIR__ . '/controllers/ProfessionalController.php';
+        ProfessionalController::updateNote($matches[1]);
+    }
+    
+    elseif (preg_match('#^/professional/notes/(\d+)$#', $uri, $matches) && $method === 'DELETE') {
+        require_once __DIR__ . '/controllers/ProfessionalController.php';
+        ProfessionalController::deleteNote($matches[1]);
+    }
+    
+    elseif (preg_match('#^/professional/treatments/(\d+)/supervise$#', $uri, $matches) && $method === 'POST') {
+        require_once __DIR__ . '/controllers/ProfessionalController.php';
+        ProfessionalController::superviseTreatment($matches[1]);
+    }
+    
+    elseif (preg_match('#^/professional/treatments/(\d+)/notes$#', $uri, $matches) && $method === 'POST') {
+        require_once __DIR__ . '/controllers/ProfessionalController.php';
+        ProfessionalController::addTreatmentNote($matches[1]);
+    }
+    
+    // ============================================
+    // Routes Treatments (suivi de traitement)
+    // ============================================
+    
+    elseif ($uri === '/treatments' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/TreatmentController.php';
+        TreatmentController::index();
+    }
+    
+    elseif ($uri === '/treatments' && $method === 'POST') {
+        require_once __DIR__ . '/controllers/TreatmentController.php';
+        TreatmentController::create();
+    }
+    
+    elseif (preg_match('#^/treatments/([a-zA-Z0-9-]+)$#', $uri, $matches) && $method === 'GET') {
+        require_once __DIR__ . '/controllers/TreatmentController.php';
+        TreatmentController::show($matches[1]);
+    }
+    
+    elseif (preg_match('#^/treatments/([a-zA-Z0-9-]+)$#', $uri, $matches) && $method === 'PUT') {
+        require_once __DIR__ . '/controllers/TreatmentController.php';
+        TreatmentController::update($matches[1]);
+    }
+    
+    elseif (preg_match('#^/treatments/([a-zA-Z0-9-]+)$#', $uri, $matches) && $method === 'DELETE') {
+        require_once __DIR__ . '/controllers/TreatmentController.php';
+        TreatmentController::delete($matches[1]);
+    }
+    
+    elseif (preg_match('#^/treatments/([a-zA-Z0-9-]+)/status$#', $uri, $matches) && $method === 'PUT') {
+        require_once __DIR__ . '/controllers/TreatmentController.php';
+        TreatmentController::updateStatus($matches[1]);
+    }
+    
+    elseif (preg_match('#^/treatments/([a-zA-Z0-9-]+)/entries$#', $uri, $matches) && $method === 'POST') {
+        require_once __DIR__ . '/controllers/TreatmentController.php';
+        TreatmentController::addEntry($matches[1]);
+    }
+    
+    elseif (preg_match('#^/treatments/([a-zA-Z0-9-]+)/photos$#', $uri, $matches) && $method === 'POST') {
+        require_once __DIR__ . '/controllers/TreatmentController.php';
+        TreatmentController::uploadEntryPhoto($matches[1]);
+    }
+    
+    elseif (preg_match('#^/treatments/([a-zA-Z0-9-]+)/photos/([a-zA-Z0-9-]+)$#', $uri, $matches) && $method === 'GET') {
+        require_once __DIR__ . '/controllers/TreatmentController.php';
+        TreatmentController::getPhoto($matches[1], $matches[2]);
+    }
+    
+    elseif (preg_match('#^/treatments/([a-zA-Z0-9-]+)/timeline$#', $uri, $matches) && $method === 'GET') {
+        require_once __DIR__ . '/controllers/TreatmentController.php';
+        TreatmentController::photoTimeline($matches[1]);
+    }
+    
+    elseif (preg_match('#^/treatments/([a-zA-Z0-9-]+)/stats$#', $uri, $matches) && $method === 'GET') {
+        require_once __DIR__ . '/controllers/TreatmentController.php';
+        TreatmentController::stats($matches[1]);
+    }
+    
+    elseif (preg_match('#^/treatments/([a-zA-Z0-9-]+)/entries/([a-zA-Z0-9-]+)$#', $uri, $matches) && $method === 'PUT') {
+        require_once __DIR__ . '/controllers/TreatmentController.php';
+        TreatmentController::updateEntry($matches[1], $matches[2]);
+    }
+    
+    elseif (preg_match('#^/treatments/([a-zA-Z0-9-]+)/entries/([a-zA-Z0-9-]+)$#', $uri, $matches) && $method === 'DELETE') {
+        require_once __DIR__ . '/controllers/TreatmentController.php';
+        TreatmentController::deleteEntry($matches[1], $matches[2]);
+    }
+    
+    // ============================================
     // Route par defaut - 404
     // ============================================
     

@@ -1,11 +1,23 @@
 import { useState, useRef, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Upload,
   X,
@@ -14,6 +26,13 @@ import {
   AlertCircle,
   CheckCircle,
   Activity,
+  TrendingUp,
+  UserPlus,
+  Calendar,
+  ArrowRight,
+  Stethoscope,
+  FileText,
+  Share2,
 } from "lucide-react";
 
 const MAX_SIZE = 10 * 1024 * 1024;
@@ -31,6 +50,7 @@ type AnalysisResult = {
 
 const Analyze = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [file, setFile] = useState<File | null>(null);
@@ -40,6 +60,10 @@ const Analyze = () => {
   );
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [showTreatmentDialog, setShowTreatmentDialog] = useState(false);
+  const [treatmentName, setTreatmentName] = useState("");
+  const [treatmentNotes, setTreatmentNotes] = useState("");
+  const [isCreatingTreatment, setIsCreatingTreatment] = useState(false);
   // 1. Define the interface at the top of your file
   interface UploadResponse {
     analysis_id?: string;
@@ -173,6 +197,54 @@ const Analyze = () => {
     };
 
     return map[risk] || "text-muted-foreground bg-muted";
+  };
+
+  const handleStartTreatment = async () => {
+    if (!treatmentName.trim()) {
+      toast({
+        title: "Nom requis",
+        description: "Veuillez donner un nom a votre suivi de traitement.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreatingTreatment(true);
+
+    try {
+      const analysisId =
+        uploadResponse?.analysis_id ||
+        uploadResponse?.data?.analysis_id ||
+        uploadResponse?.data?.data?.analysis_id ||
+        uploadResponse?.id ||
+        uploadResponse?.data?.id ||
+        null;
+
+      const response = await api.createTreatment({
+        name: treatmentName,
+        analysis_id: analysisId,
+        condition: result?.result?.pathologie || result?.diagnostic || "Non specifie",
+        notes: treatmentNotes,
+      });
+
+      toast({
+        title: "Suivi cree",
+        description: "Votre suivi de traitement a ete cree avec succes.",
+      });
+
+      setShowTreatmentDialog(false);
+      navigate(`/treatments/${response.data?.id || response.id}`);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Erreur lors de la creation du suivi";
+      toast({
+        title: "Erreur",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingTreatment(false);
+    }
   };
 
   return (
@@ -346,7 +418,7 @@ const Analyze = () => {
 
                   <div className="rounded-xl border p-4 text-center">
                     <p className="mb-1 text-xs text-muted-foreground">
-                      Sévérité
+                      Severite
                     </p>
                     <span
                       className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${riskColor(
@@ -357,19 +429,184 @@ const Analyze = () => {
                     </span>
                   </div>
                 </div>
+
+                {/* Post-Diagnosis Next Steps */}
+                <Separator className="my-6" />
+                
+                <div className="space-y-4">
+                  <h3 className="flex items-center gap-2 text-lg font-semibold">
+                    <ArrowRight className="h-5 w-5 text-primary" />
+                    Prochaines etapes
+                  </h3>
+                  
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {/* Start Treatment Tracking */}
+                    <Card 
+                      className="cursor-pointer border-2 border-transparent transition-all hover:border-primary hover:shadow-md"
+                      onClick={() => {
+                        setTreatmentName(result.result?.pathologie || result.diagnostic || "Mon traitement");
+                        setShowTreatmentDialog(true);
+                      }}
+                    >
+                      <CardContent className="flex items-start gap-4 p-4">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <TrendingUp className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium">Suivre mon traitement</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Demarrez un suivi photo et journal pour observer l evolution
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* View History */}
+                    <Card 
+                      className="cursor-pointer border-2 border-transparent transition-all hover:border-primary hover:shadow-md"
+                      onClick={() => navigate("/history")}
+                    >
+                      <CardContent className="flex items-start gap-4 p-4">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600">
+                          <FileText className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium">Voir mon historique</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Consultez toutes vos analyses precedentes
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Consult a Professional */}
+                    <Card 
+                      className="cursor-pointer border-2 border-transparent transition-all hover:border-amber-500 hover:shadow-md"
+                      onClick={() => navigate("/profile")}
+                    >
+                      <CardContent className="flex items-start gap-4 p-4">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600">
+                          <Stethoscope className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium">Consulter un professionnel</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Partagez vos resultats avec un dermatologue
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* New Analysis */}
+                    <Card 
+                      className="cursor-pointer border-2 border-transparent transition-all hover:border-emerald-500 hover:shadow-md"
+                      onClick={reset}
+                    >
+                      <CardContent className="flex items-start gap-4 p-4">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
+                          <Camera className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium">Nouvelle analyse</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Analyser une autre image d ongle
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Risk Level Warning */}
+                  {(result.result?.niveau_risque === "eleve" || result.result?.niveau_risque === "critique") && (
+                    <Card className="border-red-200 bg-red-50">
+                      <CardContent className="flex items-start gap-4 p-4">
+                        <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
+                        <div>
+                          <h4 className="font-medium text-red-800">Consultation recommandee</h4>
+                          <p className="text-sm text-red-700">
+                            Compte tenu du niveau de risque detecte, nous vous recommandons fortement de consulter un professionnel de sante dans les plus brefs delais.
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
-          {uploadResponse && (
-            <div className="mt-4 rounded border bg-background p-3">
-              <h3 className="mb-2 text-sm font-medium">
-                Debug upload response
-              </h3>
-              <pre className="max-h-48 overflow-auto text-xs">
-                {JSON.stringify(uploadResponse, null, 2)}
-              </pre>
-            </div>
-          )}
+          {/* Treatment Creation Dialog */}
+          <Dialog open={showTreatmentDialog} onOpenChange={setShowTreatmentDialog}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Demarrer un suivi de traitement</DialogTitle>
+                <DialogDescription>
+                  Creez un suivi pour observer l evolution de votre ongle au fil du temps avec des photos et un journal de traitement.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="treatment-name">Nom du suivi</Label>
+                  <Input
+                    id="treatment-name"
+                    placeholder="Ex: Traitement mycose pouce droit"
+                    value={treatmentName}
+                    onChange={(e) => setTreatmentName(e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="treatment-notes">Notes (optionnel)</Label>
+                  <Textarea
+                    id="treatment-notes"
+                    placeholder="Ajoutez des notes sur votre condition ou le traitement prevu..."
+                    value={treatmentNotes}
+                    onChange={(e) => setTreatmentNotes(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+
+                {result && (
+                  <div className="rounded-lg border bg-muted/50 p-3">
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-medium">Condition detectee:</span>{" "}
+                      {result.result?.pathologie || result.diagnostic || "Non specifie"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-medium">Niveau de risque:</span>{" "}
+                      {result.result?.niveau_risque || "Non evalue"}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowTreatmentDialog(false)}
+                  disabled={isCreatingTreatment}
+                >
+                  Annuler
+                </Button>
+                <Button
+                  onClick={handleStartTreatment}
+                  disabled={isCreatingTreatment || !treatmentName.trim()}
+                >
+                  {isCreatingTreatment ? (
+                    <>
+                      <Activity className="mr-2 h-4 w-4 animate-spin" />
+                      Creation...
+                    </>
+                  ) : (
+                    <>
+                      <TrendingUp className="mr-2 h-4 w-4" />
+                      Creer le suivi
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </main>
     </div>
