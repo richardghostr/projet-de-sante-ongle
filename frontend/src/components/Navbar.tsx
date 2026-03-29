@@ -1,23 +1,36 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Activity, LogOut, User, BarChart3, Camera, Clock } from 'lucide-react';
+import { Menu, X, Activity, LogOut, User, BarChart3, Camera, Clock, TrendingUp, Shield, Stethoscope } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 export const Navbar = () => {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout, hasRole } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isActive = (path: string) => location.pathname === path;
 
+  // Base authenticated links
   const authLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: BarChart3 },
     { to: '/analyze', label: 'Analyse', icon: Camera },
+    { to: '/treatments', label: 'Suivis', icon: TrendingUp },
     { to: '/history', label: 'Historique', icon: Clock },
     { to: '/profile', label: 'Profil', icon: User },
   ];
+
+  // Role-specific links
+  const roleLinks = [];
+  if (hasRole('admin')) {
+    roleLinks.push({ to: '/admin', label: 'Admin', icon: Shield });
+  }
+  if (hasRole('professional') || hasRole('admin')) {
+    roleLinks.push({ to: '/professional', label: 'Pro', icon: Stethoscope });
+  }
+
+  const allLinks = [...authLinks, ...roleLinks];
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
@@ -33,7 +46,7 @@ export const Navbar = () => {
         <nav className="hidden items-center gap-1 md:flex">
           {isAuthenticated ? (
             <>
-              {authLinks.map(({ to, label, icon: Icon }) => (
+              {allLinks.map(({ to, label, icon: Icon }) => (
                 <Link
                   key={to}
                   to={to}
@@ -49,8 +62,13 @@ export const Navbar = () => {
                 </Link>
               ))}
               <div className="ml-2 flex items-center gap-2 border-l pl-3">
-                <span className="text-sm text-muted-foreground">{user?.prenom || user?.nom}</span>
-                <Button variant="ghost" size="icon" onClick={logout} title="Déconnexion">
+                <div className="flex flex-col items-end">
+                  <span className="text-sm font-medium">{user?.prenom || user?.nom}</span>
+                  {user?.role && user.role !== 'user' && (
+                    <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
+                  )}
+                </div>
+                <Button variant="ghost" size="icon" onClick={logout} title="Deconnexion">
                   <LogOut className="h-4 w-4" />
                 </Button>
               </div>
@@ -58,7 +76,7 @@ export const Navbar = () => {
           ) : (
             <>
               <Link to="/about" className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                À propos
+                A propos
               </Link>
               <Link to="/contact" className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 Contact
@@ -83,7 +101,7 @@ export const Navbar = () => {
           <nav className="flex flex-col gap-1">
             {isAuthenticated ? (
               <>
-                {authLinks.map(({ to, label, icon: Icon }) => (
+                {allLinks.map(({ to, label, icon: Icon }) => (
                   <Link
                     key={to}
                     to={to}
@@ -102,12 +120,12 @@ export const Navbar = () => {
                   className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
                 >
                   <LogOut className="h-4 w-4" />
-                  Déconnexion
+                  Deconnexion
                 </button>
               </>
             ) : (
               <>
-                <Link to="/about" onClick={() => setMobileOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted">À propos</Link>
+                <Link to="/about" onClick={() => setMobileOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted">A propos</Link>
                 <Link to="/contact" onClick={() => setMobileOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted">Contact</Link>
                 <div className="mt-2 flex flex-col gap-2">
                   <Button variant="outline" asChild><Link to="/login" onClick={() => setMobileOpen(false)}>Connexion</Link></Button>
