@@ -222,6 +222,27 @@ CREATE TABLE `professional_notes` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
+-- Table: treatment_messages (Messages patient <-> professionnel)
+-- ============================================
+DROP TABLE IF EXISTS `treatment_messages`;
+CREATE TABLE `treatment_messages` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `uuid` CHAR(36) NOT NULL UNIQUE,
+  `treatment_plan_id` BIGINT UNSIGNED NOT NULL,
+  `sender_id` BIGINT UNSIGNED NOT NULL,
+  `recipient_id` BIGINT UNSIGNED NOT NULL,
+  `contenu` TEXT NOT NULL,
+  `read_at` TIMESTAMP NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_treatment` (`treatment_plan_id`),
+  INDEX `idx_sender` (`sender_id`),
+  INDEX `idx_recipient` (`recipient_id`),
+  FOREIGN KEY (`treatment_plan_id`) REFERENCES `treatment_plans`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`sender_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`recipient_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
 -- Table: professional_patient_links (Liaisons pro-patient)
 -- ============================================
 DROP TABLE IF EXISTS `professional_patient_links`;

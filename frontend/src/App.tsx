@@ -20,11 +20,13 @@ import NotFound from "./pages/NotFound";
 
 // Admin and Professional pages
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminAnalysisDetail from "./pages/AdminAnalysisDetail";
 import ProfessionalDashboard from "./pages/ProfessionalDashboard";
 
 // Treatment tracking pages
 import Treatments from "./pages/Treatments";
 import TreatmentDetail from "./pages/TreatmentDetail";
+import ProfessionalNotes from "./pages/ProfessionalNotes";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +54,7 @@ const App = () => (
             {/* Treatment tracking routes */}
             <Route path="/treatments" element={<ProtectedRoute><Treatments /></ProtectedRoute>} />
             <Route path="/treatments/:id" element={<ProtectedRoute><TreatmentDetail /></ProtectedRoute>} />
+            <Route path="/professional-notes" element={<ProtectedRoute><ProfessionalNotes /></ProtectedRoute>} />
             
             {/* Admin routes - admin only */}
             <Route 
@@ -63,6 +66,16 @@ const App = () => (
                   </RoleGuard>
                 </ProtectedRoute>
               } 
+            />
+            <Route
+              path="/admin/analyses/:id"
+              element={
+                <ProtectedRoute>
+                  <RoleGuard allowedRoles={["admin"]}>
+                    <AdminAnalysisDetail />
+                  </RoleGuard>
+                </ProtectedRoute>
+              }
             />
             
             {/* Professional routes - professional and admin */}

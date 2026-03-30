@@ -12,21 +12,31 @@ export const Navbar = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Base authenticated links
-  const authLinks = [
-    { to: '/dashboard', label: 'Dashboard', icon: BarChart3 },
-    { to: '/analyze', label: 'Analyse', icon: Camera },
-    { to: '/treatments', label: 'Suivis', icon: TrendingUp },
-    { to: '/history', label: 'Historique', icon: Clock },
-    { to: '/profile', label: 'Profil', icon: User },
-  ];
+  // Base authenticated links.
+  // - Admins: do not show normal app links (only Admin link shown via roleLinks).
+  // - Professionals: must NOT see Dashboard/Analyse/Suivis/Historique — show only Profile + Pro link.
+  // - Regular users: show full app links.
+  const authLinks = hasRole('admin')
+    ? []
+    : hasRole('professional')
+    ? [
+        { to: '/profile', label: 'Profil', icon: User },
+      ]
+    : [
+        { to: '/dashboard', label: 'Dashboard', icon: BarChart3 },
+        { to: '/analyze', label: 'Analyse', icon: Camera },
+        { to: '/treatments', label: 'Suivis', icon: TrendingUp },
+        { to: '/history', label: 'Historique', icon: Clock },
+        { to: '/profile', label: 'Profil', icon: User },
+      ];
 
   // Role-specific links
   const roleLinks = [];
   if (hasRole('admin')) {
+    // Admin should only see the Admin link (no Pro).
     roleLinks.push({ to: '/admin', label: 'Admin', icon: Shield });
-  }
-  if (hasRole('professional') || hasRole('admin')) {
+  } else if (hasRole('professional')) {
+    // Professionals (non-admin) see the Pro link
     roleLinks.push({ to: '/professional', label: 'Pro', icon: Stethoscope });
   }
 

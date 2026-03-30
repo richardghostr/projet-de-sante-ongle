@@ -15,7 +15,7 @@ import {
   Plus, Calendar, Activity, Camera, TrendingUp, 
   Clock, ChevronRight, Pill, Target, AlertCircle
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 interface Treatment {
   id: number;
@@ -111,20 +111,23 @@ const Treatments = () => {
     <div className="flex min-h-screen flex-col bg-muted/30">
       <Navbar />
       <main className="container flex-1 py-8">
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold">Mes traitements</h1>
             <p className="text-muted-foreground">Suivez l&apos;evolution de vos traitements</p>
           </div>
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => navigate('/professional-notes')}>Notes du professionnel</Button>
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2"><Plus className="h-4 w-4" /> Nouveau traitement</Button>
             </DialogTrigger>
             <DialogContent>
               <CreateTreatmentForm onSuccess={() => { setCreateOpen(false); loadTreatments(); }} />
             </DialogContent>
-          </Dialog>
+            </Dialog>
         </div>
+      </div>
 
         {loading ? (
           <div className="flex justify-center py-12">
@@ -279,16 +282,17 @@ const CreateTreatmentForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.titre.trim()) {
-      toast.error('Le titre est requis');
+      toast({ title: 'Erreur', description: 'Le titre est requis' });
       return;
     }
     setLoading(true);
     try {
       await api.createTreatment(form);
-      toast.success('Traitement cree');
+      toast({ title: 'Succès', description: 'Traitement cree' });
       onSuccess();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Une erreur est survenue';
+      toast({ title: 'Erreur', description: message });
     } finally {
       setLoading(false);
     }

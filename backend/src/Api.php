@@ -309,10 +309,36 @@ try {
         require_once __DIR__ . '/controllers/ProfessionalController.php';
         ProfessionalController::invitePatient();
     }
+
+    // Patient: lister et repondre aux invitations/propositions de suivi
+    elseif ($uri === '/patient/invitations' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/PatientController.php';
+        PatientController::listInvitations();
+    }
+
+    elseif (preg_match('#^/patient/invitations/(\d+)$#', $uri, $matches) && $method === 'PUT') {
+        require_once __DIR__ . '/controllers/PatientController.php';
+        PatientController::respondInvitation($matches[1]);
+    }
+
+    elseif (preg_match('#^/patient/notes/(\d+)/read$#', $uri, $matches) && $method === 'POST') {
+        require_once __DIR__ . '/controllers/PatientController.php';
+        PatientController::markNoteRead($matches[1]);
+    }
+
+    elseif ($uri === '/patient/notes' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/PatientController.php';
+        PatientController::listNotes();
+    }
     
     elseif (preg_match('#^/professional/patients/(\d+)$#', $uri, $matches) && $method === 'GET') {
         require_once __DIR__ . '/controllers/ProfessionalController.php';
         ProfessionalController::getPatientDossier($matches[1]);
+    }
+    
+    elseif (preg_match('#^/professional/patients/(\d+)$#', $uri, $matches) && $method === 'DELETE') {
+        require_once __DIR__ . '/controllers/ProfessionalController.php';
+        ProfessionalController::endLink($matches[1]);
     }
     
     elseif ($uri === '/professional/notes' && $method === 'POST') {
@@ -377,6 +403,11 @@ try {
     elseif (preg_match('#^/treatments/([a-zA-Z0-9-]+)/entries$#', $uri, $matches) && $method === 'POST') {
         require_once __DIR__ . '/controllers/TreatmentController.php';
         TreatmentController::addEntry($matches[1]);
+    }
+    
+    elseif (preg_match('#^/treatments/([a-zA-Z0-9-]+)/messages$#', $uri, $matches) && $method === 'POST') {
+        require_once __DIR__ . '/controllers/TreatmentController.php';
+        TreatmentController::addMessage($matches[1]);
     }
     
     elseif (preg_match('#^/treatments/([a-zA-Z0-9-]+)/photos$#', $uri, $matches) && $method === 'POST') {

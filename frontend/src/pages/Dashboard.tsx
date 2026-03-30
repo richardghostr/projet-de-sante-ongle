@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { Navbar } from '@/components/Navbar';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Camera, Clock, Activity, TrendingUp, AlertTriangle, CheckCircle, ArrowRight } from 'lucide-react';
 
@@ -12,12 +14,31 @@ const Dashboard = () => {
   const [stats, setStats] = useState<any>(null);
   const [recent, setRecent] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [invitations, setInvitations] = useState<any[]>([]);
+  const [invLoading, setInvLoading] = useState(false);
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [confirmingInvite, setConfirmingInvite] = useState<{ link_id: number; profName?: string } | null>(null);
 
   useEffect(() => {
     Promise.allSettled([
       api.getStatistics().then(r => setStats(r.data || r)),
       api.getHistory(1, 5).then(r => setRecent(r.data?.analyses || r.data || [])),
     ]).finally(() => setLoading(false));
+
+    // Charger invitations patient
+    (async () => {
+      try {
+        setInvLoading(true);
+        const res: any = await api.getMyInvitations();
+        setInvitations(res?.data?.invitations || res?.invitations || []);
+      } catch (e: any) {
+        console.error('Failed to load invitations', e);
+        toast({ title: 'Erreur', description: e?.message || 'Erreur lors du chargement des invitations' });
+      } finally {
+        setInvLoading(false);
+      }
+    })();
   }, []);
 
   const statCards = [
@@ -45,6 +66,74 @@ const Dashboard = () => {
             <Link to="/analyze"><Camera className="h-4 w-4" /> Nouvelle analyse</Link>
           </Button>
         </div>
+        {/* Invitations */}
+        <div className="mb-6">
+          <Card className="shadow-sm">
+            <CardHeader className="flex-row items-center justify-between">
+              <CardTitle className="text-lg">Invitations de suivi</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {invLoading ? (
+                <div className="flex justify-center py-6"><div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
+              ) : invitations.length === 0 ? (
+                <div className="py-6 text-center text-muted-foreground">Vous n'avez aucune invitation pour le moment.</div>
+              ) : (
+                <div className="space-y-3">
+                  {invitations.map((inv: any) => (
+                    <div key={inv.link_id} className="flex items-center justify-between rounded-xl border p-3">
+                      <div>
+                        <p className="text-sm font-medium">{inv.professional_prenom ? `${inv.professional_prenom} ${inv.professional_nom}` : inv.professional_nom}</p>
+                        <p className="text-xs text-muted-foreground">{inv.professional_email}</p>
+                        <p className="text-xs text-muted-foreground">Reçue le {new Date(inv.created_at).toLocaleDateString('fr')}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setConfirmingInvite({ link_id: inv.link_id, profName: inv.professional_prenom ? `${inv.professional_prenom} ${inv.professional_nom}` : inv.professional_nom })}>Accepter</Button>
+                        <Button size="sm" variant="outline" onClick={async () => {
+                          try {
+                            await api.respondInvitation(inv.link_id, 'reject');
+                            toast({ title: 'Invitation refusée', description: 'Vous avez refusé l\'invitation.' });
+                            const res: any = await api.getMyInvitations();
+                            setInvitations(res?.data?.invitations || res?.invitations || []);
+                          } catch (err) {
+                            toast({ title: 'Erreur', description: (err as any)?.message || 'Erreur' });
+                          }
+                        }}>Refuser</Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Confirmation modal for accepting an invitation */}
+        <Dialog open={!!confirmingInvite} onOpenChange={(open) => { if (!open) setConfirmingInvite(null); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmer l'invitation</DialogTitle>
+            </DialogHeader>
+            <div className="py-2">
+              <p>Accepter l'invitation de suivi{confirmingInvite?.profName ? ` de ${confirmingInvite.profName}` : ''} ?</p>
+            </div>
+            <DialogFooter>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setConfirmingInvite(null)}>Annuler</Button>
+                <Button onClick={async () => {
+                  if (!confirmingInvite) return;
+                    try {
+                      await api.respondInvitation(confirmingInvite.link_id, 'accept');
+                      toast({ title: 'Invitation acceptée', description: 'Vous êtes maintenant lié au professionnel.' });
+                      setConfirmingInvite(null);
+                      navigate('/treatments');
+                    } catch (err) {
+                      toast({ title: 'Erreur', description: (err as any)?.message || 'Erreur' });
+                  }
+                }}>Confirmer</Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Stats */}
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

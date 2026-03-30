@@ -146,8 +146,8 @@ class TreatmentController {
         $notes = [];
         if ($treatment['professional_id']) {
             $notes = db()->fetchAll(
-                "SELECT pn.uuid, pn.type, pn.titre, pn.contenu, pn.importance, pn.created_at,
-                        u.nom as professional_nom
+                "SELECT pn.id, pn.uuid, pn.type, pn.titre, pn.contenu, pn.importance, pn.created_at, pn.read_at,
+                        u.nom as professional_nom, u.prenom as professional_prenom
                  FROM professional_notes pn
                  JOIN users u ON pn.professional_id = u.id
                  WHERE pn.treatment_plan_id = ? AND pn.visibilite = 'shared_with_patient'
@@ -175,12 +175,84 @@ class TreatmentController {
             $stats['jours_suivi'] = $start->diff($end)->days + 1;
         }
         
+        // Recuperer les messages de suivi (patient <-> professionnel)
+        $messages = db()->fetchAll(
+            "SELECT tm.uuid, tm.contenu, tm.created_at, tm.sender_id, u.nom as sender_nom, u.prenom as sender_prenom
+             FROM treatment_messages tm
+             JOIN users u ON tm.sender_id = u.id
+             WHERE tm.treatment_plan_id = ?
+             ORDER BY tm.created_at DESC",
+            [$treatment['id']]
+        );
+
         Response::success([
             'treatment' => $treatment,
             'entries' => $entries,
             'notes' => $notes,
+            'messages' => $messages,
             'stats' => $stats
         ]);
+    }
+
+    /**
+     * Poster un message lie a un traitement (patient -> professionnel ou inverse)
+     */
+    public static function addMessage($uuid) {
+        $user = Auth::requireAuth();
+        $data = getRequestBody();
+
+        if (empty($data['message'])) {
+            Response::error('Message vide', 400);
+        }
+
+        $treatment = db()->fetchOne(
+            "SELECT tp.id, tp.user_id, tp.professional_id
+             FROM treatment_plans tp
+             WHERE tp.uuid = ? AND (tp.user_id = ? OR tp.professional_id = ?)",
+            [$uuid, $user['id'], $user['id']]
+        );
+
+        if (!$treatment) {
+            Response::notFound('Plan de traitement non trouve ou acces non autorise');
+        }
+
+        // Determiner le destinataire
+        if ($user['id'] === $treatment['user_id']) {
+            // Patient envoie -> professionnel
+            $recipientId = $treatment['professional_id'];
+            if (!$recipientId) {
+                Response::error('Aucun professionnel associe a ce traitement', 400);
+            }
+        } else {
+            // Professionnel envoie -> patient
+            $recipientId = $treatment['user_id'];
+        }
+
+        // Inserer le message (table treatment_messages attendue dans la DB)
+        $messageData = [
+            'uuid' => generateUUID(),
+            'treatment_plan_id' => $treatment['id'],
+            'sender_id' => $user['id'],
+            'recipient_id' => $recipientId,
+            'contenu' => $data['message']
+        ];
+
+        $id = db()->insert('treatment_messages', $messageData);
+
+        if (!$id) {
+            Response::serverError('Erreur lors de l\'envoi du message');
+        }
+
+        // Notifier le destinataire
+        db()->insert('notifications', [
+            'user_id' => $recipientId,
+            'type' => 'info',
+            'titre' => 'Nouveau message',
+            'message' => 'Vous avez recu un nouveau message concernant un suivi.',
+            'link' => '/treatments/' . $uuid
+        ]);
+
+        Response::created(['id' => $id, 'uuid' => $messageData['uuid']], 'Message envoye');
     }
     
     /**

@@ -14,10 +14,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Users, FileText, Stethoscope, UserPlus, Mail, 
-  CheckCircle, XCircle, Clock, Activity, Eye,
+  CheckCircle, XCircle, Clock, Activity, Eye, Trash,
   Plus, ChevronRight
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 interface DashboardStats {
   patients: { total: number; pending_requests: number };
@@ -60,6 +60,7 @@ const ProfessionalDashboard = () => {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientDossier, setPatientDossier] = useState<any>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadDashboard();
@@ -88,11 +89,11 @@ const ProfessionalDashboard = () => {
     setInviteLoading(true);
     try {
       await api.invitePatient(inviteEmail);
-      toast.success('Invitation envoyee');
+      toast({ title: 'Succès', description: 'Invitation envoyee' });
       setInviteEmail('');
       loadDashboard();
     } catch (err: any) {
-      toast.error(err.message);
+      toast({ title: 'Erreur', description: err.message });
     } finally {
       setInviteLoading(false);
     }
@@ -101,10 +102,10 @@ const ProfessionalDashboard = () => {
   const handleRequest = async (linkId: number, action: 'accept' | 'reject') => {
     try {
       await api.handleLinkRequest(linkId, action);
-      toast.success(action === 'accept' ? 'Demande acceptee' : 'Demande refusee');
+      toast({ title: action === 'accept' ? 'Demande acceptee' : 'Demande refusee', description: '' });
       loadDashboard();
     } catch (err: any) {
-      toast.error(err.message);
+      toast({ title: 'Erreur', description: err.message });
     }
   };
 
@@ -114,7 +115,7 @@ const ProfessionalDashboard = () => {
       const res = await api.getPatientDossier(patient.id);
       setPatientDossier(res.data || res);
     } catch (err: any) {
-      toast.error(err.message);
+      toast({ title: 'Erreur', description: err.message });
     }
   };
 
@@ -242,6 +243,24 @@ const ProfessionalDashboard = () => {
                             onClick={() => openPatientDossier(patient)}
                           >
                             <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-600"
+                            title="Terminer le suivi"
+                            onClick={async () => {
+                              if (!confirm(`Terminer le suivi avec ${patient.prenom} ${patient.nom} ?`)) return;
+                              try {
+                                await api.endPatientLink(patient.link_id);
+                                toast({ title: 'Succès', description: 'Suivi termine' });
+                                loadDashboard();
+                              } catch (err: any) {
+                                toast({ title: 'Erreur', description: err.message || 'Erreur' });
+                              }
+                            }}
+                          >
+                            <Trash className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
@@ -431,10 +450,10 @@ const AddNoteForm = ({ patientId, onSuccess }: { patientId: number; onSuccess: (
         type
       });
       setNote('');
-      toast.success('Note ajoutee');
+      toast({ title: 'Succès', description: 'Note ajoutee' });
       onSuccess();
     } catch (err: any) {
-      toast.error(err.message);
+      toast({ title: 'Erreur', description: err.message });
     } finally {
       setLoading(false);
     }

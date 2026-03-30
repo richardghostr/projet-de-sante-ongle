@@ -42,6 +42,10 @@ const AdminDashboard = () => {
   const [usersFilter, setUsersFilter] = useState({ role: '', status: '', search: '' });
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  // Admin: analyses list + pagination/filters
+  const [analyses, setAnalyses] = useState<any[]>([]);
+  const [analysesPagination, setAnalysesPagination] = useState({ page: 1, total: 0, pages: 0 });
+  const [analysesFilter, setAnalysesFilter] = useState({ risk: '', status: '' });
 
   useEffect(() => {
     loadDashboard();
@@ -50,6 +54,10 @@ const AdminDashboard = () => {
   useEffect(() => {
     loadUsers();
   }, [usersFilter, usersPagination.page]);
+
+  useEffect(() => {
+    loadAnalyses();
+  }, [analysesFilter, analysesPagination.page]);
 
   const loadDashboard = async () => {
     try {
@@ -74,6 +82,22 @@ const AdminDashboard = () => {
       setUsersPagination(p => ({ ...p, total: data.total || 0, pages: data.pages || 0 }));
     } catch (err) {
       console.error('Failed to load users', err);
+    }
+  };
+
+  const loadAnalyses = async () => {
+    try {
+      const res = await api.getAdminAnalyses({
+        page: analysesPagination.page,
+        limit: 10,
+        risk: analysesFilter.risk || undefined,
+        status: analysesFilter.status || undefined,
+      });
+      const data = res.data || res;
+      setAnalyses(data.analyses || []);
+      setAnalysesPagination(p => ({ ...p, total: data.total || 0, pages: data.pages || 0 }));
+    } catch (err) {
+      console.error('Failed to load analyses', err);
     }
   };
 
@@ -167,6 +191,7 @@ const AdminDashboard = () => {
         <Tabs defaultValue="users" className="space-y-6">
           <TabsList>
             <TabsTrigger value="users" className="gap-2"><Users className="h-4 w-4" /> Utilisateurs</TabsTrigger>
+            <TabsTrigger value="analyses" className="gap-2"><Activity className="h-4 w-4" /> Analyses</TabsTrigger>
             <TabsTrigger value="feedback" className="gap-2"><MessageSquare className="h-4 w-4" /> Feedbacks</TabsTrigger>
             <TabsTrigger value="logs" className="gap-2"><FileText className="h-4 w-4" /> Logs</TabsTrigger>
           </TabsList>
@@ -186,24 +211,24 @@ const AdminDashboard = () => {
                         onChange={(e) => setUsersFilter(f => ({ ...f, search: e.target.value }))}
                       />
                     </div>
-                    <Select value={usersFilter.role} onValueChange={(v) => setUsersFilter(f => ({ ...f, role: v }))}>
+                    <Select value={usersFilter.role} onValueChange={(v) => setUsersFilter(f => ({ ...f, role: v === 'all' ? '' : v }))}>
                       <SelectTrigger className="w-36">
                         <SelectValue placeholder="Role" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Tous les roles</SelectItem>
+                        <SelectItem value="all">Tous les roles</SelectItem>
                         <SelectItem value="user">Utilisateur</SelectItem>
                         <SelectItem value="student">Etudiant</SelectItem>
                         <SelectItem value="professional">Professionnel</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Select value={usersFilter.status} onValueChange={(v) => setUsersFilter(f => ({ ...f, status: v }))}>
+                    <Select value={usersFilter.status} onValueChange={(v) => setUsersFilter(f => ({ ...f, status: v === 'all' ? '' : v }))}>
                       <SelectTrigger className="w-36">
                         <SelectValue placeholder="Statut" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Tous les statuts</SelectItem>
+                        <SelectItem value="all">Tous les statuts</SelectItem>
                         <SelectItem value="active">Actif</SelectItem>
                         <SelectItem value="inactive">Inactif</SelectItem>
                         <SelectItem value="suspended">Suspendu</SelectItem>
@@ -295,6 +320,80 @@ const AdminDashboard = () => {
                         disabled={usersPagination.page >= usersPagination.pages}
                         onClick={() => setUsersPagination(p => ({ ...p, page: p.page + 1 }))}
                       >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="analyses">
+            <Card className="shadow-sm">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Analyses</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Select value={analysesFilter.risk || 'all'} onValueChange={(v) => setAnalysesFilter(f => ({ ...f, risk: v === 'all' ? '' : v }))}>
+                      <SelectTrigger className="w-36"><SelectValue placeholder="Risque" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tous</SelectItem>
+                        <SelectItem value="sain">Sain</SelectItem>
+                        <SelectItem value="bas">Bas</SelectItem>
+                        <SelectItem value="modere">Modéré</SelectItem>
+                        <SelectItem value="eleve">Élevé</SelectItem>
+                        <SelectItem value="critique">Critique</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={analysesFilter.status || 'all'} onValueChange={(v) => setAnalysesFilter(f => ({ ...f, status: v === 'all' ? '' : v }))}>
+                      <SelectTrigger className="w-36"><SelectValue placeholder="Statut" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tous</SelectItem>
+                        <SelectItem value="pending">En attente</SelectItem>
+                        <SelectItem value="completed">Termine</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button onClick={() => { setAnalysesPagination(p => ({ ...p, page: 1 })); loadAnalyses(); }}>Filtrer</Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>UUID</TableHead>
+                      <TableHead>Propriétaire</TableHead>
+                      <TableHead>Risque</TableHead>
+                      <TableHead>Statut</TableHead>
+                      <TableHead>Créée</TableHead>
+                      <TableHead className="w-12"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {analyses.map(a => (
+                      <TableRow key={a.id}>
+                        <TableCell>{a.uuid || a.id}</TableCell>
+                        <TableCell>{a.user_nom || a.user_email || '—'}</TableCell>
+                        <TableCell>{a.niveau_risque || a.risk || a.risque || '—'}</TableCell>
+                        <TableCell>{a.status || '—'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{a.date_analyse ? new Date(a.date_analyse).toLocaleDateString('fr') : (a.created_at ? new Date(a.created_at).toLocaleDateString('fr') : '—')}</TableCell>
+                        <TableCell>
+                          <Link to={`/admin/analyses/${a.id}`} className="text-primary">Voir</Link>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+
+                {analysesPagination.pages > 1 && (
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                    <p className="text-sm text-muted-foreground">Page {analysesPagination.page} sur {analysesPagination.pages}</p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" disabled={analysesPagination.page <= 1} onClick={() => setAnalysesPagination(p => ({ ...p, page: p.page - 1 }))}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" disabled={analysesPagination.page >= analysesPagination.pages} onClick={() => setAnalysesPagination(p => ({ ...p, page: p.page + 1 }))}>
                         <ChevronRight className="h-4 w-4" />
                       </Button>
                     </div>
@@ -452,12 +551,12 @@ const LogsTab = () => {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Logs systeme</CardTitle>
-          <Select value={severity} onValueChange={setSeverity}>
+          <Select value={severity} onValueChange={(v) => setSeverity(v === 'all' ? '' : v)}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Tous niveaux" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Tous niveaux</SelectItem>
+              <SelectItem value="all">Tous niveaux</SelectItem>
               <SelectItem value="debug">Debug</SelectItem>
               <SelectItem value="info">Info</SelectItem>
               <SelectItem value="warning">Warning</SelectItem>

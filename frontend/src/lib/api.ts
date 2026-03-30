@@ -170,6 +170,11 @@ class ApiClient {
   getPatientDossier(patientId: number) {
     return this.request(`/professional/patients/${patientId}`, { method: 'GET' });
   }
+  
+  // Terminer / supprimer le suivi entre professionnel et patient
+  endPatientLink(linkId: number) {
+    return this.request(`/professional/patients/${linkId}`, { method: 'DELETE' });
+  }
   addProfessionalNote(data: {
     patient_id: number;
     contenu: string;
@@ -193,6 +198,20 @@ class ApiClient {
   }
   addTreatmentNote(treatmentId: number, note: string) {
     return this.request(`/professional/treatments/${treatmentId}/notes`, { method: 'POST', body: JSON.stringify({ note }) });
+  }
+
+  // ============================================
+  // Patient invitations (invitations envoyees par un professionnel)
+  getMyInvitations() {
+    return this.request('/patient/invitations', { method: 'GET' });
+  }
+
+  getPatientNotes() {
+    return this.request('/patient/notes', { method: 'GET' });
+  }
+
+  respondInvitation(linkId: number, action: 'accept' | 'reject') {
+    return this.request(`/patient/invitations/${linkId}`, { method: 'PUT', body: JSON.stringify({ action }) });
   }
 
   // ============================================
@@ -267,6 +286,9 @@ class ApiClient {
   }
   getTreatmentStats(uuid: string) {
     return this.request(`/treatments/${uuid}/stats`, { method: 'GET' });
+  }
+  postTreatmentMessage(uuid: string, message: string) {
+    return this.request(`/treatments/${uuid}/messages`, { method: 'POST', body: JSON.stringify({ message }) });
   }
   updateTreatmentEntry(treatmentUuid: string, entryUuid: string, data: Partial<{
     note: string;

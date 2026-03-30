@@ -220,11 +220,26 @@ const Analyze = () => {
         uploadResponse?.data?.id ||
         null;
 
+      const analysisUuid =
+        uploadResponse?.uuid ||
+        uploadResponse?.data?.uuid ||
+        (result && typeof result === 'object' && 'uuid' in result ? (result as { uuid: string }).uuid : null) ||
+        (result &&
+        typeof result === 'object' &&
+        'analysis' in result &&
+        (result as { analysis: unknown }).analysis &&
+        typeof (result as { analysis: unknown }).analysis === 'object' &&
+        'uuid' in ((result as { analysis: unknown }).analysis as object)
+          ? ((result as { analysis: { uuid: string } }).analysis.uuid)
+          : null);
+
       const response = await api.createTreatment({
-        name: treatmentName,
-        analysis_id: analysisId,
-        condition: result?.result?.pathologie || result?.diagnostic || "Non specifie",
-        notes: treatmentNotes,
+        titre: treatmentName,
+        description: treatmentNotes,
+        analysis_uuid: analysisUuid,
+        doigt_concerne: "index", // Valeur par défaut
+        main_pied: "main_droite", // Valeur par défaut
+        frequence_suivi: "weekly", // Valeur par défaut
       });
 
       toast({
@@ -233,7 +248,7 @@ const Analyze = () => {
       });
 
       setShowTreatmentDialog(false);
-      navigate(`/treatments/${response.data?.id || response.id}`);
+      navigate(`/treatments/${response.data?.uuid || response.uuid}`);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Erreur lors de la creation du suivi";

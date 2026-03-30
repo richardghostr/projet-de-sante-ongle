@@ -270,6 +270,38 @@ class ProfessionalController {
             'notes' => $notes
         ]);
     }
+
+    /**
+     * DELETE /api/professional/patients/{linkId} - Terminer / supprimer le suivi d'un patient (met status = 'ended')
+     */
+    public static function endLink($linkId) {
+        $user = Auth::requireRole(['professional', 'admin']);
+
+        $link = db()->fetchOne(
+            'SELECT * FROM professional_patient_links WHERE id = ? AND professional_id = ? AND status IN ("active","pending")',
+            [$linkId, $user['id']]
+        );
+
+        if (!$link) {
+            Response::notFound('Lien professionnel-patient non trouve');
+        }
+
+        db()->update('professional_patient_links', [
+            'status' => 'ended',
+            'ended_at' => date('Y-m-d H:i:s')
+        ], 'id = ?', [$linkId]);
+
+        // Notifier le patient
+        db()->insert('notifications', [
+            'user_id' => $link['patient_id'],
+            'type' => 'info',
+            'titre' => 'Fin de suivi professionnel',
+            'message' => ($user['prenom'] ?? $user['nom'] ?? 'Votre professionnel') . ' a termine le suivi de votre dossier.',
+            'link' => '/profile'
+        ]);
+
+        Response::success(['message' => 'Suivi termine pour ce patient']);
+    }
     
     /**
      * Ajouter une note professionnelle

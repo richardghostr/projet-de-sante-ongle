@@ -20,46 +20,108 @@ import {
   ChevronLeft, ChevronRight, Play, Pause, Trash2, Edit2, MoreVertical
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+interface Treatment {
+  uuid: string;
+  titre: string;
+  status: 'active' | 'paused' | 'completed' | 'abandoned';
+  pathologie_nom?: string;
+  date_debut: string;
+  date_fin_prevue?: string;
+  objectif?: string;
+  traitement_prescrit?: string;
+  description?: string;
+  professional_nom?: string;
+  professional_prenom?: string;
+}
+
+interface TreatmentEntry {
+  uuid: string;
+  type: string;
+  note?: string;
+  date_entry: string;
+  image_path?: string;
+  amelioration_percue?: string;
+  douleur_niveau?: number;
+  humeur?: string;
+}
+
+interface TreatmentNote {
+  uuid: string;
+  type: string;
+  titre?: string;
+  contenu: string;
+  importance?: string;
+  created_at: string;
+  professional_nom: string;
+}
+
+interface TreatmentMessage {
+  uuid: string;
+  contenu: string;
+  created_at: string;
+  sender_id: number;
+  sender_nom: string;
+  sender_prenom: string;
+}
+
+interface TreatmentStats {
+  duree_jours: number;
+  total_entries: number;
+  photos_count: number;
+  frequence_reelle: number;
+}
+
+interface Photo {
+  uuid: string;
+  date_entry: string;
+}
 
 const TreatmentDetail = () => {
-  const { uuid } = useParams<{ uuid: string }>();
+  const { id: uuid } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const [treatment, setTreatment] = useState<any>(null);
-  const [entries, setEntries] = useState<any[]>([]);
-  const [notes, setNotes] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
-  const [timeline, setTimeline] = useState<any[]>([]);
+  const [treatment, setTreatment] = useState<Treatment | null>(null);
+  const [entries, setEntries] = useState<TreatmentEntry[]>([]);
+  const [notes, setNotes] = useState<TreatmentNote[]>([]);
+  const [messages, setMessages] = useState<TreatmentMessage[]>([]);
+  const [stats, setStats] = useState<TreatmentStats | null>(null);
+  const [timeline, setTimeline] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [addEntryOpen, setAddEntryOpen] = useState(false);
+    const { toast } = useToast();
+  const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [photoCompareOpen, setPhotoCompareOpen] = useState(false);
+  const [addEntryOpen, setAddEntryOpen] = useState(false);
 
-  useEffect(() => {
-    if (uuid) loadTreatment();
-  }, [uuid]);
+    useEffect(() => { loadTreatment(); }, [uuid]);
 
   const loadTreatment = async () => {
     setLoading(true);
     try {
-      const [treatmentRes, statsRes, timelineRes] = await Promise.all([
+      const [treatmentRes, timelineRes] = await Promise.all([
         api.getTreatment(uuid!),
-        api.getTreatmentStats(uuid!),
         api.getTreatmentTimeline(uuid!)
       ]);
-      
-      const data = treatmentRes.data || treatmentRes;
-      setTreatment(data.treatment);
-      setEntries(data.entries || []);
-      setNotes(data.notes || []);
-      setStats((statsRes.data || statsRes));
-      setTimeline((timelineRes.data || timelineRes).photos || []);
+      const treatmentData = treatmentRes?.data || treatmentRes;
+      const timelineData = timelineRes?.data || timelineRes;
+      const statsData = null;
+
+      if (!treatmentData || !treatmentData.treatment) {
+        throw new Error('Donnees de traitement invalides');
+      }
+
+      setTreatment(treatmentData.treatment);
+      setEntries(treatmentData.entries || []);
+      setNotes(treatmentData.notes || []);
+      setMessages(treatmentData.messages || []);
+      setStats(statsData || null);
+      setTimeline(timelineData?.photos || []);
     } catch (err) {
-      console.error(err);
-      toast.error('Erreur lors du chargement');
+      const message = err instanceof Error ? err.message : 'Erreur inconnue';
+      toast({ title: 'Erreur', description: message });
+      console.error('Treatment loading error:', err);
     } finally {
       setLoading(false);
     }
@@ -67,11 +129,12 @@ const TreatmentDetail = () => {
 
   const handleStatusChange = async (newStatus: string) => {
     try {
-      await api.updateTreatmentStatus(uuid!, newStatus as any);
-      toast.success('Statut mis a jour');
+      await api.updateTreatmentStatus(uuid!, newStatus as Treatment['status']);
+      toast({ title: 'Succès', description: 'Statut mis a jour' });
       loadTreatment();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue';
+      toast({ title: 'Erreur', description: message });
     }
   };
 
@@ -79,10 +142,11 @@ const TreatmentDetail = () => {
     if (!confirm('Supprimer ce traitement ?')) return;
     try {
       await api.deleteTreatment(uuid!);
-      toast.success('Traitement supprime');
+      toast({ title: 'Succès', description: 'Traitement supprime' });
       navigate('/treatments');
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue';
+      toast({ title: 'Erreur', description: message });
     }
   };
 
@@ -94,10 +158,11 @@ const TreatmentDetail = () => {
       await api.uploadTreatmentPhoto(uuid!, file, {
         date_entry: new Date().toISOString().split('T')[0]
       });
-      toast.success('Photo ajoutee');
+      toast({ title: 'Succès', description: 'Photo ajoutee' });
       loadTreatment();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue';
+      toast({ title: 'Erreur', description: message });
     }
     
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -173,6 +238,8 @@ const TreatmentDetail = () => {
                 className="hidden" 
                 accept="image/*"
                 onChange={handlePhotoUpload}
+                aria-label="Upload treatment photo"
+                title="Upload treatment photo"
               />
               <Button variant="outline" className="gap-2" onClick={() => fileInputRef.current?.click()}>
                 <Camera className="h-4 w-4" /> Photo
@@ -304,6 +371,11 @@ const TreatmentDetail = () => {
                 <Pill className="h-4 w-4" /> Notes pro ({notes.length})
               </TabsTrigger>
             )}
+          {treatment?.professional_nom && (
+            <TabsTrigger value="professional" className="gap-2">
+              <Activity className="h-4 w-4" /> Professionnel
+            </TabsTrigger>
+          )}
           </TabsList>
 
           <TabsContent value="entries">
@@ -320,7 +392,7 @@ const TreatmentDetail = () => {
                 ) : (
                   <ScrollArea className="h-[500px]">
                     <div className="divide-y">
-                      {entries.map((entry: any) => (
+                      {entries.map((entry: TreatmentEntry) => (
                         <EntryItem 
                           key={entry.uuid} 
                           entry={entry} 
@@ -377,7 +449,7 @@ const TreatmentDetail = () => {
             <TabsContent value="notes">
               <Card className="shadow-sm">
                 <CardContent className="p-4 space-y-4">
-                  {notes.map((note: any) => (
+                  {notes.map((note: TreatmentNote) => (
                     <div key={note.uuid} className="rounded-lg border p-4">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
@@ -401,6 +473,85 @@ const TreatmentDetail = () => {
               </Card>
             </TabsContent>
           )}
+
+          {treatment?.professional_nom && (
+            <TabsContent value="professional">
+              <Card className="shadow-sm">
+                <CardContent className="p-4 space-y-4">
+                  <div>
+                    <h3 className="font-medium mb-2">Professionnel supervisant</h3>
+                    <p className="text-muted-foreground">Dr. {treatment?.professional_prenom} {treatment?.professional_nom}{treatment?.professional_specialite && ` - ${treatment?.professional_specialite}`}</p>
+                  </div>
+
+                  {notes.length > 0 && (
+                    <div>
+                      <h4 className="font-medium">Notes du professionnel</h4>
+                      <div className="mt-2 space-y-3">
+                        {notes.map(n => (
+                          <div key={n.uuid} className="rounded-lg border p-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline">{n.type}</Badge>
+                                {n.importance === 'urgent' && <Badge className="bg-red-100 text-red-700">Urgent</Badge>}
+                                {!n.read_at && <Badge className="bg-blue-100 text-blue-700">Nouvelle</Badge>}
+                              </div>
+                              <span className="text-xs text-muted-foreground">{new Date(n.created_at).toLocaleString('fr')}</span>
+                            </div>
+                            {n.titre && <h5 className="font-medium">{n.titre}</h5>}
+                            <p className="text-sm text-muted-foreground mt-1">{n.contenu}</p>
+                            <p className="text-xs text-muted-foreground mt-2">Par Dr. {n.professional_prenom ? `${n.professional_prenom} ${n.professional_nom}` : n.professional_nom}</p>
+                            {!n.read_at && (
+                              <div className="mt-3 text-right">
+                                <Button size="sm" variant="ghost" onClick={async () => {
+                                  try {
+                                    await api.request(`/patient/notes/${n.id}/read`, { method: 'POST' });
+                                    // mark local state as read
+                                    n.read_at = new Date().toISOString();
+                                  } catch (e) { /* ignore */ }
+                                }}>Marquer comme lu</Button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* If current user is a professional, allow adding a treatment note */}
+                  {treatment && (
+                    <AddTreatmentNoteSection treatment={treatment} onAdded={() => loadTreatment()} />
+                  )}
+
+                  <div>
+                    <h4 className="font-medium">Messages</h4>
+                    <div className="mt-3 space-y-3 max-h-64 overflow-auto">
+                      {messages.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">Aucun message pour le moment</div>
+                      ) : (
+                        // show messages oldest first
+                        [...messages].reverse().map(m => {
+                          const isMine = m.sender_id === (user?.id ?? 0);
+                          return (
+                            <div key={m.uuid} className={`rounded-lg p-3 ${isMine ? 'bg-primary/10 ml-auto max-w-[75%]' : 'bg-slate-50 mr-auto max-w-[75%]'} border`}>
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="text-sm font-medium">{m.sender_prenom ? `${m.sender_prenom} ${m.sender_nom}` : m.sender_nom}</div>
+                                <div className="text-xs text-muted-foreground">{new Date(m.created_at).toLocaleString('fr')}</div>
+                              </div>
+                              <p className="text-sm text-muted-foreground">{m.contenu}</p>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    <div className="mt-4">
+                      <MessageComposer treatmentUuid={uuid!} onSent={() => loadTreatment()} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </main>
     </div>
@@ -408,15 +559,17 @@ const TreatmentDetail = () => {
 };
 
 // Entry Item Component
-const EntryItem = ({ entry, treatmentUuid, onDelete }: { entry: any; treatmentUuid: string; onDelete: () => void }) => {
+const EntryItem = ({ entry, treatmentUuid, onDelete }: { entry: TreatmentEntry; treatmentUuid: string; onDelete: () => void }) => {
+  const { toast } = useToast();
   const handleDelete = async () => {
     if (!confirm('Supprimer cette entree ?')) return;
     try {
       await api.deleteTreatmentEntry(treatmentUuid, entry.uuid);
-      toast.success('Entree supprimee');
+      toast({ title: 'Succès', description: 'Entree supprimee' });
       onDelete();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue';
+      toast({ title: 'Erreur', description: message });
     }
   };
 
@@ -469,6 +622,7 @@ const EntryItem = ({ entry, treatmentUuid, onDelete }: { entry: any; treatmentUu
 // Add Entry Form
 const AddEntryForm = ({ uuid, onSuccess }: { uuid: string; onSuccess: () => void }) => {
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
   const [form, setForm] = useState({
     type: 'note',
     note: '',
@@ -486,10 +640,11 @@ const AddEntryForm = ({ uuid, onSuccess }: { uuid: string; onSuccess: () => void
         ...form,
         douleur_niveau: form.douleur_niveau
       });
-      toast.success('Entree ajoutee');
+      toast({ title: 'Succès', description: 'Entree ajoutee' });
       onSuccess();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue';
+      toast({ title: 'Erreur', description: message });
     } finally {
       setLoading(false);
     }
@@ -590,8 +745,47 @@ const AddEntryForm = ({ uuid, onSuccess }: { uuid: string; onSuccess: () => void
   );
 };
 
+// Message Composer Component
+const MessageComposer = ({ treatmentUuid, onSent }: { treatmentUuid: string; onSent: () => void }) => {
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleSend = async () => {
+    if (!message.trim()) return;
+    setLoading(true);
+    try {
+      await api.postTreatmentMessage(treatmentUuid, message.trim());
+      toast({ title: 'Succès', description: 'Message envoyé' });
+      setMessage('');
+      onSent();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erreur lors de l\'envoi';
+      toast({ title: 'Erreur', description: msg });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mt-2">
+      <Textarea
+        placeholder="Ecrire un message au professionnel..."
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        rows={3}
+      />
+      <div className="flex items-center justify-end gap-2 mt-2">
+        <Button size="sm" onClick={handleSend} disabled={loading || !message.trim()}>
+          {loading ? 'Envoi...' : 'Envoyer'}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 // Photo Compare Component
-const PhotoCompare = ({ photo1, photo2, treatmentUuid }: { photo1: any; photo2: any; treatmentUuid: string }) => {
+const PhotoCompare = ({ photo1, photo2, treatmentUuid }: { photo1: Photo; photo2: Photo; treatmentUuid: string }) => {
   return (
     <div className="grid grid-cols-2 gap-4">
       <div className="text-center">
@@ -618,8 +812,57 @@ const PhotoCompare = ({ photo1, photo2, treatmentUuid }: { photo1: any; photo2: 
   );
 };
 
+// Section for professionals to add a treatment note
+const AddTreatmentNoteSection = ({ treatment, onAdded }: { treatment: any; onAdded: () => void }) => {
+  const { user, isProfessional } = useAuth();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [note, setNote] = useState('');
+
+  if (!isProfessional) return null;
+
+  const canEdit = user && (user.id === (treatment.professional_id || treatment.professionalId) || user.role === 'admin');
+
+  const handleAdd = async () => {
+    if (!note.trim()) return toast({ title: 'Erreur', description: 'Le contenu est requis' });
+    setLoading(true);
+    try {
+      // treatment.id is numeric id required by the professional route
+      await api.addTreatmentNote(treatment.id, note.trim());
+      toast({ title: 'Succès', description: 'Note ajoutée au traitement' });
+      setNote('');
+      setOpen(false);
+      onAdded();
+    } catch (err: any) {
+      toast({ title: 'Erreur', description: err?.message || 'Erreur lors de l\'ajout' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!canEdit) return null;
+
+  return (
+    <div className="mt-4">
+      <div className="flex items-center justify-between mb-2">
+        <h5 className="font-medium">Ajouter une note de suivi</h5>
+        <Button variant="outline" size="sm" onClick={() => setOpen(o => !o)}>{open ? 'Fermer' : 'Ajouter'}</Button>
+      </div>
+      {open && (
+        <div className="space-y-2">
+          <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} />
+          <div className="flex justify-end">
+            <Button onClick={handleAdd} disabled={loading || !note.trim()}>{loading ? 'Envoi...' : 'Ajouter la note'}</Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Photo Timeline Component
-const PhotoTimeline = ({ photos, treatmentUuid }: { photos: any[]; treatmentUuid: string }) => {
+const PhotoTimeline = ({ photos, treatmentUuid }: { photos: Photo[]; treatmentUuid: string }) => {
   const [current, setCurrent] = useState(0);
   const [playing, setPlaying] = useState(false);
 
