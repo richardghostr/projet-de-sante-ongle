@@ -12,6 +12,9 @@ export const Navbar = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  // Determine profile route depending on role
+  const profileRoute = hasRole('professional') ? '/professional/profile' : '/patient/profile';
+
   // Base authenticated links.
   // - Admins: do not show normal app links (only Admin link shown via roleLinks).
   // - Professionals: must NOT see Dashboard/Analyse/Suivis/Historique — show only Profile + Pro link.
@@ -20,14 +23,14 @@ export const Navbar = () => {
     ? []
     : hasRole('professional')
     ? [
-        { to: '/profile', label: 'Profil', icon: User },
+        { to: profileRoute, label: 'Profil', icon: User },
       ]
     : [
         { to: '/dashboard', label: 'Dashboard', icon: BarChart3 },
         { to: '/analyze', label: 'Analyse', icon: Camera },
         { to: '/treatments', label: 'Suivis', icon: TrendingUp },
         { to: '/history', label: 'Historique', icon: Clock },
-        { to: '/profile', label: 'Profil', icon: User },
+        { to: profileRoute, label: 'Profil', icon: User },
       ];
 
   // Role-specific links

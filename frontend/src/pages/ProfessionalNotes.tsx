@@ -28,12 +28,22 @@ const ProfessionalNotes = () => {
   };
 
   const handleSend = async (treatmentUuid: string) => {
-    const msg = messageMap[treatmentUuid] || '';
+    const key = treatmentUuid;
+    const msg = messageMap[key] || '';
     if (!msg.trim()) return toast({ title: 'Erreur', description: 'Message vide' });
     try {
-      await api.postTreatmentMessage(treatmentUuid, msg.trim());
+      if (key === 'general') {
+        await api.sendPatientMessage({ message: msg.trim() });
+      } else if (key.startsWith('analysis:')) {
+        const analysisUuid = key.replace('analysis:', '');
+        await api.sendPatientMessage({ message: msg.trim(), analysis_uuid: analysisUuid });
+      } else {
+        // treatment uuid
+        await api.postTreatmentMessage(key, msg.trim());
+      }
+
       toast({ title: 'Succès', description: 'Message envoyé' });
-      setMessageMap(m => ({ ...m, [treatmentUuid]: '' }));
+      setMessageMap(m => ({ ...m, [key]: '' }));
       load();
     } catch (e) {
       toast({ title: 'Erreur', description: (e as any)?.message || 'Erreur lors de l\'envoi' });
@@ -102,15 +112,13 @@ const ProfessionalNotes = () => {
                       ))}
                     </div>
 
-                    {/* Message composer only if linked to a treatment */}
-                    {key !== 'general' && !key.startsWith('analysis:') && (
-                      <div className="mt-4">
-                        <Textarea value={messageMap[key] || ''} onChange={(e) => setMessageMap(m => ({ ...m, [key]: e.target.value }))} rows={3} />
-                        <div className="flex justify-end mt-2">
-                          <Button onClick={() => handleSend(key)}>Envoyer un message au professionnel</Button>
-                        </div>
+                    {/* Message composer for all groups (treatment, analysis, general) */}
+                    <div className="mt-4">
+                      <Textarea value={messageMap[key] || ''} onChange={(e) => setMessageMap(m => ({ ...m, [key]: e.target.value }))} rows={3} />
+                      <div className="flex justify-end mt-2">
+                        <Button onClick={() => handleSend(key)}>Envoyer un message au professionnel</Button>
                       </div>
-                    )}
+                    </div>
                   </CardContent>
                 </Card>
               ))}

@@ -210,6 +210,10 @@ class ApiClient {
     return this.request('/patient/notes', { method: 'GET' });
   }
 
+  sendPatientMessage(data: { message: string; analysis_uuid?: string }) {
+    return this.request('/patient/messages', { method: 'POST', body: JSON.stringify(data) });
+  }
+
   respondInvitation(linkId: number, action: 'accept' | 'reject') {
     return this.request(`/patient/invitations/${linkId}`, { method: 'PUT', body: JSON.stringify({ action }) });
   }

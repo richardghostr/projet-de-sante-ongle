@@ -149,6 +149,22 @@ try {
         require_once __DIR__ . '/controllers/ProfileController.php';
         ProfileController::uploadAvatar();
     }
+
+    // Professional documents
+    elseif ($uri === '/profile/documents' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/ProfileController.php';
+        ProfileController::listDocuments();
+    }
+
+    elseif ($uri === '/profile/documents' && $method === 'POST') {
+        require_once __DIR__ . '/controllers/ProfileController.php';
+        ProfileController::addDocument();
+    }
+
+    elseif (preg_match('#^/profile/documents/(\d+)/(verify)$#', $uri, $matches) && $method === 'PUT') {
+        require_once __DIR__ . '/controllers/ProfileController.php';
+        ProfileController::verifyDocument($matches[1]);
+    }
     
     // ============================================
     // Routes utilitaires
@@ -324,6 +340,11 @@ try {
     elseif (preg_match('#^/patient/notes/(\d+)/read$#', $uri, $matches) && $method === 'POST') {
         require_once __DIR__ . '/controllers/PatientController.php';
         PatientController::markNoteRead($matches[1]);
+    }
+
+    elseif ($uri === '/patient/messages' && $method === 'POST') {
+        require_once __DIR__ . '/controllers/PatientController.php';
+        PatientController::sendMessage();
     }
 
     elseif ($uri === '/patient/notes' && $method === 'GET') {

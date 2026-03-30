@@ -118,6 +118,7 @@ class TreatmentController {
     public static function show($uuid) {
         $user = Auth::requireAuth();
         
+        // Recuperer le traitement
         $treatment = db()->fetchOne(
             "SELECT tp.*, p.nom as pathologie_nom, p.code as pathologie_code,
                     p.description as pathologie_description, p.symptomes as pathologie_symptomes,
@@ -128,11 +129,25 @@ class TreatmentController {
              LEFT JOIN pathologies p ON tp.pathologie_id = p.id
              LEFT JOIN analyses a ON tp.analysis_id = a.id
              LEFT JOIN users prof ON tp.professional_id = prof.id
-             WHERE tp.uuid = ? AND (tp.user_id = ? OR tp.professional_id = ?)",
-            [$uuid, $user['id'], $user['id']]
+             WHERE tp.uuid = ?",
+            [$uuid]
         );
-        
+
         if (!$treatment) {
+            Response::notFound('Plan de traitement non trouve');
+        }
+
+        // Verifier l'acces: owner, assigned professional, admin, or linked professional
+        $hasAccess = false;
+        if ($user['id'] === $treatment['user_id']) $hasAccess = true;
+        if (isset($user['role']) && $user['role'] === 'admin') $hasAccess = true;
+        if ($user['id'] === $treatment['professional_id']) $hasAccess = true;
+        if (!$hasAccess && isset($user['role']) && $user['role'] === 'professional') {
+            $link = db()->fetchOne('SELECT id FROM professional_patient_links WHERE professional_id = ? AND patient_id = ? AND status = "active"', [$user['id'], $treatment['user_id']]);
+            if ($link) $hasAccess = true;
+        }
+
+        if (!$hasAccess) {
             Response::notFound('Plan de traitement non trouve');
         }
         
@@ -205,14 +220,29 @@ class TreatmentController {
             Response::error('Message vide', 400);
         }
 
+        // Recuperer le traitement sans restriction d'utilisateur pour gerer les pros lies
         $treatment = db()->fetchOne(
             "SELECT tp.id, tp.user_id, tp.professional_id
              FROM treatment_plans tp
-             WHERE tp.uuid = ? AND (tp.user_id = ? OR tp.professional_id = ?)",
-            [$uuid, $user['id'], $user['id']]
+             WHERE tp.uuid = ?",
+            [$uuid]
         );
 
         if (!$treatment) {
+            Response::notFound('Plan de traitement non trouve ou acces non autorise');
+        }
+
+        // Verifier l'acces: owner, assigned professional, admin, or linked professional
+        $hasAccess = false;
+        if ($user['id'] === $treatment['user_id']) $hasAccess = true;
+        if (isset($user['role']) && $user['role'] === 'admin') $hasAccess = true;
+        if ($user['id'] === $treatment['professional_id']) $hasAccess = true;
+        if (!$hasAccess && isset($user['role']) && $user['role'] === 'professional') {
+            $link = db()->fetchOne('SELECT id FROM professional_patient_links WHERE professional_id = ? AND patient_id = ? AND status = "active"', [$user['id'], $treatment['user_id']]);
+            if ($link) $hasAccess = true;
+        }
+
+        if (!$hasAccess) {
             Response::notFound('Plan de traitement non trouve ou acces non autorise');
         }
 
@@ -220,6 +250,16 @@ class TreatmentController {
         if ($user['id'] === $treatment['user_id']) {
             // Patient envoie -> professionnel
             $recipientId = $treatment['professional_id'];
+            if (!$recipientId) {
+                // Fallback: chercher un professionnel lie au patient (lien actif)
+                $link = db()->fetchOne(
+                    'SELECT professional_id FROM professional_patient_links WHERE patient_id = ? AND status = "active" ORDER BY created_at DESC LIMIT 1',
+                    [$treatment['user_id']]
+                );
+                if ($link && !empty($link['professional_id'])) {
+                    $recipientId = $link['professional_id'];
+                }
+            }
             if (!$recipientId) {
                 Response::error('Aucun professionnel associe a ce traitement', 400);
             }
@@ -630,15 +670,19 @@ class TreatmentController {
      */
     public static function photoTimeline($uuid) {
         $user = Auth::requireAuth();
-        
-        $treatment = db()->fetchOne(
-            'SELECT id FROM treatment_plans WHERE uuid = ? AND (user_id = ? OR professional_id = ?)',
-            [$uuid, $user['id'], $user['id']]
-        );
-        
-        if (!$treatment) {
-            Response::notFound('Plan de traitement non trouve');
+        // Recuperer traitement et verifier acces (owner, assigned professional, admin, or linked professional)
+        $treatment = db()->fetchOne('SELECT id, user_id, professional_id FROM treatment_plans WHERE uuid = ?', [$uuid]);
+        if (!$treatment) Response::notFound('Plan de traitement non trouve');
+
+        $hasAccess = false;
+        if ($user['id'] === $treatment['user_id']) $hasAccess = true;
+        if (isset($user['role']) && $user['role'] === 'admin') $hasAccess = true;
+        if ($user['id'] === $treatment['professional_id']) $hasAccess = true;
+        if (!$hasAccess && isset($user['role']) && $user['role'] === 'professional') {
+            $link = db()->fetchOne('SELECT id FROM professional_patient_links WHERE professional_id = ? AND patient_id = ? AND status = "active"', [$user['id'], $treatment['user_id']]);
+            if ($link) $hasAccess = true;
         }
+        if (!$hasAccess) Response::notFound('Plan de traitement non trouve');
         
         $photos = db()->fetchAll(
             "SELECT uuid, date_entry, note, amelioration_percue, created_at
@@ -662,18 +706,26 @@ class TreatmentController {
      */
     public static function stats($uuid) {
         $user = Auth::requireAuth();
-        
+        // Recuperer traitement
         $treatment = db()->fetchOne(
             'SELECT tp.*, p.nom as pathologie_nom
              FROM treatment_plans tp
              LEFT JOIN pathologies p ON tp.pathologie_id = p.id
-             WHERE tp.uuid = ? AND (tp.user_id = ? OR tp.professional_id = ?)',
-            [$uuid, $user['id'], $user['id']]
+             WHERE tp.uuid = ?',
+            [$uuid]
         );
-        
-        if (!$treatment) {
-            Response::notFound('Plan de traitement non trouve');
+        if (!$treatment) Response::notFound('Plan de traitement non trouve');
+
+        // Verifier acces
+        $hasAccess = false;
+        if ($user['id'] === $treatment['user_id']) $hasAccess = true;
+        if (isset($user['role']) && $user['role'] === 'admin') $hasAccess = true;
+        if ($user['id'] === $treatment['professional_id']) $hasAccess = true;
+        if (!$hasAccess && isset($user['role']) && $user['role'] === 'professional') {
+            $link = db()->fetchOne('SELECT id FROM professional_patient_links WHERE professional_id = ? AND patient_id = ? AND status = "active"', [$user['id'], $treatment['user_id']]);
+            if ($link) $hasAccess = true;
         }
+        if (!$hasAccess) Response::notFound('Plan de traitement non trouve');
         
         $entries = db()->fetchAll(
             'SELECT date_entry, type, douleur_niveau, amelioration_percue, humeur

@@ -344,6 +344,8 @@ class ProfessionalController {
         ];
         
         $noteId = db()->insert('professional_notes', $noteData);
+
+        Logger::info('Professional.addNote inserted', ['note_id' => $noteId, 'note_data' => $noteData]);
         
         // Notifier le patient si partage
         if ($noteData['visibilite'] === 'shared_with_patient') {
@@ -485,7 +487,7 @@ class ProfessionalController {
         ], 'id = ?', [$treatmentId]);
         
         // Aussi creer une note professionnelle
-        db()->insert('professional_notes', [
+        $insertData = [
             'uuid' => generateUUID(),
             'professional_id' => $user['id'],
             'user_id' => $treatment['patient_id'] ?? $treatment['user_id'],
@@ -493,7 +495,9 @@ class ProfessionalController {
             'type' => 'follow_up',
             'contenu' => $data['note'],
             'visibilite' => 'shared_with_patient'
-        ]);
+        ];
+        db()->insert('professional_notes', $insertData);
+        Logger::info('Professional.addTreatmentNote inserted', ['treatment_id' => $treatmentId, 'insert' => $insertData]);
         
         Response::success(['message' => 'Note ajoutee au traitement']);
     }

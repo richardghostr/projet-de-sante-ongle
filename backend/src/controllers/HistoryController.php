@@ -164,9 +164,19 @@ class HistoryController {
             Response::notFound('Analyse non trouvee');
         }
         
-        // Verifier l'acces
-        if ($user && $analysis['user_id'] && $analysis['user_id'] != $user['id']) {
-            if (!isset($user['role']) || $user['role'] !== 'admin') {
+        // Verifier l'acces: owner or admin or linked professional
+        if ($user && isset($analysis['user_id']) && $analysis['user_id'] != $user['id']) {
+            $allowed = false;
+            if (isset($user['role']) && $user['role'] === 'admin') {
+                $allowed = true;
+            }
+            // allow professionals who have an active link to the patient
+            if (!$allowed && isset($user['role']) && $user['role'] === 'professional') {
+                $link = db()->fetchOne('SELECT id FROM professional_patient_links WHERE professional_id = ? AND patient_id = ? AND status = "active"', [$user['id'], $analysis['user_id']]);
+                if ($link) $allowed = true;
+            }
+
+            if (!$allowed) {
                 Response::forbidden('Acces non autorise');
             }
         }

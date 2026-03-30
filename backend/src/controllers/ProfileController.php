@@ -322,6 +322,112 @@ class ProfileController {
         
         Response::success(['avatar_url' => $avatarUrl], 'Avatar mis a jour');
     }
+
+    /**
+     * GET /api/profile/documents - lister les documents (pour le user courant)
+     */
+    public static function listDocuments() {
+        $user = Auth::requireAuth();
+        $pdo = get_db();
+        $docs = [];
+        if ($pdo) {
+            $docs = db()->fetchAll('SELECT id, uuid, filename, url, type, verified, created_at FROM professional_documents WHERE user_id = ? ORDER BY created_at DESC', [$user['id']]);
+        } else {
+            $docsFile = __DIR__ . '/../../storage/data/documents_' . $user['id'] . '.json';
+            if (file_exists($docsFile)) {
+                $docs = json_decode(file_get_contents($docsFile), true) ?: [];
+            }
+        }
+        Response::success(['documents' => $docs]);
+    }
+
+    /**
+     * POST /api/profile/documents - upload d'un document professionnel
+     */
+    public static function addDocument() {
+        $user = Auth::requireAuth();
+
+        if (!isset($_FILES['document']) || $_FILES['document']['error'] === UPLOAD_ERR_NO_FILE) {
+            Response::error('Aucun fichier fourni', 400);
+        }
+
+        $file = $_FILES['document'];
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            Response::error('Erreur lors du telechargement', 400);
+        }
+
+        // Limiter a 10MB
+        if ($file['size'] > 10 * 1024 * 1024) {
+            Response::error('Fichier trop volumineux (max 10MB)', 413);
+        }
+
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mimeType = finfo_file($finfo, $file['tmp_name']);
+        finfo_close($finfo);
+
+        $allowed = ['application/pdf','image/jpeg','image/png','image/webp'];
+        if (!in_array($mimeType, $allowed)) {
+            Response::error('Type de fichier non autorise', 400);
+        }
+
+        // Dest
+        $docsDir = __DIR__ . '/../../storage/documents/' . $user['id'];
+        if (!is_dir($docsDir)) mkdir($docsDir, 0755, true);
+
+        $ext = pathinfo($file['name'], PATHINFO_EXTENSION) ?: 'dat';
+        $uuid = generateUUID();
+        $filename = $uuid . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', substr($file['name'], 0, 200));
+        $dest = $docsDir . '/' . $filename;
+
+        if (!move_uploaded_file($file['tmp_name'], $dest)) {
+            Response::serverError('Impossible de sauvegarder le fichier');
+        }
+
+        $url = '/storage/documents/' . $user['id'] . '/' . $filename;
+
+        $pdo = get_db();
+        if ($pdo) {
+            $id = db()->insert('professional_documents', [
+                'uuid' => $uuid,
+                'user_id' => $user['id'],
+                'filename' => $file['name'],
+                'url' => $url,
+                'type' => $mimeType,
+                'verified' => 0,
+                'created_at' => date('Y-m-d H:i:s')
+            ]);
+            if (!$id) Response::serverError('Erreur lors de l\'enregistrement du document');
+            $doc = db()->fetchOne('SELECT id, uuid, filename, url, type, verified, created_at FROM professional_documents WHERE id = ?', [$id]);
+            Response::created(['document' => $doc], 'Document enregistre');
+        } else {
+            // fallback file
+            $docsFile = __DIR__ . '/../../storage/data/documents_' . $user['id'] . '.json';
+            $docs = file_exists($docsFile) ? (json_decode(file_get_contents($docsFile), true) ?: []) : [];
+            $docs[] = ['id' => count($docs) + 1, 'uuid' => $uuid, 'filename' => $file['name'], 'url' => $url, 'type' => $mimeType, 'verified' => 0, 'created_at' => date('c')];
+            file_put_contents($docsFile, json_encode($docs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            Response::created(['document' => end($docs)], 'Document enregistre (fallback)');
+        }
+    }
+
+    /**
+     * PUT /api/profile/documents/:id/verify - verifier un document (admin)
+     */
+    public static function verifyDocument($id) {
+        $user = Auth::requireAuth();
+        if (!isset($user['role']) || $user['role'] !== 'admin') {
+            Response::forbidden('Acces refuse');
+        }
+
+        $pdo = get_db();
+        if ($pdo) {
+            $doc = db()->fetchOne('SELECT * FROM professional_documents WHERE id = ?', [$id]);
+            if (!$doc) Response::notFound('Document non trouve');
+            db()->update('professional_documents', ['verified' => 1, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
+            Response::success(['id' => $id], 'Document verifie');
+        } else {
+            Response::error('Operation non supportee en mode fichier', 400);
+        }
+    }
     
     /**
      * DELETE /api/profile - Supprimer le compte

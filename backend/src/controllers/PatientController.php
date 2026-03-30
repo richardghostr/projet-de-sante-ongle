@@ -105,22 +105,119 @@ class PatientController {
      */
     public static function listNotes() {
         $user = Auth::requireRole(['user', 'admin']);
+        try {
+            $notes = db()->fetchAll(
+                "SELECT pn.id, pn.uuid, pn.type, pn.titre, pn.contenu, pn.importance, pn.created_at, pn.read_at,
+                        pn.analysis_id, pn.treatment_plan_id,
+                        t.uuid as treatment_uuid,
+                        a.uuid as analysis_uuid,
+                        u.nom as professional_nom, u.prenom as professional_prenom
+                 FROM professional_notes pn
+                 LEFT JOIN treatment_plans t ON pn.treatment_plan_id = t.id
+                 LEFT JOIN analyses a ON pn.analysis_id = a.id
+                 JOIN users u ON pn.professional_id = u.id
+                 WHERE pn.user_id = ? AND pn.visibilite = 'shared_with_patient'
+                 ORDER BY pn.created_at DESC",
+                [$user['id']]
+            );
+        } catch (Exception $ex) {
+            // If the column `read_at` does not exist (old DB), create it and retry
+            if (strpos($ex->getMessage(), 'Unknown column') !== false || strpos($ex->getMessage(), '1054') !== false) {
+                Logger::warning('listNotes: missing read_at column, attempting to add it', ['error' => $ex->getMessage()]);
+                try {
+                    db()->exec("ALTER TABLE professional_notes ADD COLUMN `read_at` TIMESTAMP NULL AFTER `updated_at`");
+                } catch (Exception $e2) {
+                    Logger::error('listNotes: failed to add read_at column', ['error' => $e2->getMessage()]);
+                    Response::serverError('Erreur lors de la recuperation des notes');
+                }
 
-        $notes = db()->fetchAll(
-            "SELECT pn.id, pn.uuid, pn.type, pn.titre, pn.contenu, pn.importance, pn.created_at, pn.read_at,
-                    pn.analysis_id, pn.treatment_plan_id,
-                    t.uuid as treatment_uuid,
-                    a.uuid as analysis_uuid,
-                    u.nom as professional_nom, u.prenom as professional_prenom
-             FROM professional_notes pn
-             LEFT JOIN treatment_plans t ON pn.treatment_plan_id = t.id
-             LEFT JOIN analyses a ON pn.analysis_id = a.id
-             JOIN users u ON pn.professional_id = u.id
-             WHERE pn.user_id = ? AND pn.visibilite = 'shared_with_patient'
-             ORDER BY pn.created_at DESC",
-            [$user['id']]
-        );
+                // retry query
+                $notes = db()->fetchAll(
+                    "SELECT pn.id, pn.uuid, pn.type, pn.titre, pn.contenu, pn.importance, pn.created_at, pn.read_at,
+                            pn.analysis_id, pn.treatment_plan_id,
+                            t.uuid as treatment_uuid,
+                            a.uuid as analysis_uuid,
+                            u.nom as professional_nom, u.prenom as professional_prenom
+                     FROM professional_notes pn
+                     LEFT JOIN treatment_plans t ON pn.treatment_plan_id = t.id
+                     LEFT JOIN analyses a ON pn.analysis_id = a.id
+                     JOIN users u ON pn.professional_id = u.id
+                     WHERE pn.user_id = ? AND pn.visibilite = 'shared_with_patient'
+                     ORDER BY pn.created_at DESC",
+                    [$user['id']]
+                );
+            } else {
+                Logger::error('listNotes: query failed', ['error' => $ex->getMessage()]);
+                Response::serverError('Impossible de recuperer les notes');
+            }
+        }
 
+        Logger::info('Patient.listNotes result', ['user_id' => $user['id'], 'count' => count($notes)]);
         Response::success(['notes' => $notes]);
+    }
+
+    /**
+     * POST /api/patient/messages - envoyer un message depuis le patient vers son professionnel
+     * body: { message: string, analysis_uuid?: string }
+     */
+    public static function sendMessage() {
+        $user = Auth::requireRole(['user', 'admin']);
+        $body = getRequestBody();
+        $message = trim($body['message'] ?? '');
+        $analysisUuid = $body['analysis_uuid'] ?? null;
+
+        if (!$message) {
+            Response::badRequest('Message vide');
+        }
+
+        // Trouver le professionnel lie au patient (lien actif)
+        $link = db()->fetchOne('SELECT professional_id FROM professional_patient_links WHERE patient_id = ? AND status = "active" LIMIT 1', [$user['id']]);
+        if (!$link || empty($link['professional_id'])) {
+            Response::forbidden('Aucun professionnel lie a ce patient');
+        }
+        $professionalId = $link['professional_id'];
+
+        $pdo = get_db();
+
+        try {
+            // Si un analysis_uuid est fourni, resoudre l'ID de l'analyse
+            $analysisId = null;
+            if ($analysisUuid) {
+                $a = db()->fetchOne('SELECT id FROM analyses WHERE uuid = ? LIMIT 1', [$analysisUuid]);
+                if ($a) $analysisId = $a['id'];
+            }
+
+            // Inserer comme note professionnelle visible uniquement par le professionnel
+            $noteData = [
+                'uuid' => generateUUID(),
+                'professional_id' => $professionalId,
+                'user_id' => $user['id'],
+                'analysis_id' => $analysisId,
+                'treatment_plan_id' => null,
+                'type' => 'general',
+                'titre' => null,
+                'contenu' => $message,
+                'visibilite' => 'professional_only',
+                'importance' => 'normal',
+            ];
+
+            $noteId = db()->insert('professional_notes', $noteData);
+
+            // Notifier le professionnel
+            db()->insert('notifications', [
+                'user_id' => $professionalId,
+                'type' => 'professional_note',
+                'titre' => 'Nouveau message patient',
+                'message' => substr($message, 0, 200),
+                'link' => '/professional/patients'
+            ]);
+
+            Logger::info('Patient.sendMessage inserted', ['note_id' => $noteId, 'patient_id' => $user['id'], 'professional_id' => $professionalId, 'analysis_id' => $analysisId]);
+
+            Response::success(['note_id' => $noteId]);
+        } catch (Exception $ex) {
+            Logger::error('Patient.sendMessage failed', ['error' => $ex->getMessage()]);
+            Response::serverError('Impossible d\'envoyer le message');
+        }
     }
 }

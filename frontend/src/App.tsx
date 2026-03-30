@@ -22,6 +22,10 @@ import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminAnalysisDetail from "./pages/AdminAnalysisDetail";
 import ProfessionalDashboard from "./pages/ProfessionalDashboard";
+import PatientAnalysisDetail from './pages/PatientAnalysisDetail';
+import PatientTreatmentView from './pages/PatientTreatmentView';
+import ProfessionalProfile from './pages/ProfessionalProfile';
+import PatientProfile from './pages/PatientProfile';
 
 // Treatment tracking pages
 import Treatments from "./pages/Treatments";
@@ -49,7 +53,10 @@ const App = () => (
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/analyze" element={<ProtectedRoute><Analyze /></ProtectedRoute>} />
             <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
+            <Route path="/history/:id" element={<ProtectedRoute><AdminAnalysisDetail /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/professional/profile" element={<ProtectedRoute><RoleGuard allowedRoles={["professional","admin"]}><ProfessionalProfile /></RoleGuard></ProtectedRoute>} />
+            <Route path="/patient/profile" element={<ProtectedRoute><RoleGuard allowedRoles={["professional","admin","user"]}><PatientProfile /></RoleGuard></ProtectedRoute>} />
             
             {/* Treatment tracking routes */}
             <Route path="/treatments" element={<ProtectedRoute><Treatments /></ProtectedRoute>} />
@@ -89,6 +96,20 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route path="/patients/:patientId/history/:id" element={
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={["professional","admin"]}>
+                  <PatientAnalysisDetail />
+                </RoleGuard>
+              </ProtectedRoute>
+            } />
+            <Route path="/patients/:patientId/treatments/:id" element={
+              <ProtectedRoute>
+                <RoleGuard allowedRoles={["professional","admin"]}>
+                  <PatientTreatmentView />
+                </RoleGuard>
+              </ProtectedRoute>
+            } />
             
             {/* 404 */}
             <Route path="*" element={<NotFound />} />

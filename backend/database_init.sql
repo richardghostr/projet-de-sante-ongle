@@ -210,6 +210,7 @@ CREATE TABLE `professional_notes` (
   `importance` ENUM('low', 'normal', 'high', 'urgent') DEFAULT 'normal',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
+  `read_at` TIMESTAMP NULL,
   INDEX `idx_uuid` (`uuid`),
   INDEX `idx_professional` (`professional_id`),
   INDEX `idx_user` (`user_id`),

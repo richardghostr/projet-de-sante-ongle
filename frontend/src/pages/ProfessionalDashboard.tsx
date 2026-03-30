@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
@@ -348,6 +348,7 @@ const ProfessionalDashboard = () => {
           <DialogContent className="max-w-3xl max-h-[80vh]">
             <DialogHeader>
               <DialogTitle>Dossier de {selectedPatient?.prenom} {selectedPatient?.nom}</DialogTitle>
+              <DialogDescription>Consultez analyses, traitements et notes lies au patient</DialogDescription>
             </DialogHeader>
             {patientDossier ? (
               <Tabs defaultValue="analyses" className="mt-4">
@@ -364,15 +365,20 @@ const ProfessionalDashboard = () => {
                     ) : (
                       <div className="space-y-2">
                         {patientDossier.analyses?.map((a: any) => (
-                          <div key={a.uuid} className="flex items-center justify-between rounded-lg border p-3">
-                            <div>
-                              <p className="font-medium">{a.pathologie_label || 'Analyse'}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(a.date_analyse).toLocaleDateString('fr')}
-                              </p>
+                          <Link key={a.uuid} to={`/patients/${selectedPatient?.id}/history/${a.uuid}`} className="group block">
+                            <div className="flex items-center justify-between rounded-lg border p-3 transition-colors group-hover:bg-muted/50">
+                              <div>
+                                <p className="font-medium">{a.pathologie_label || 'Analyse'}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(a.date_analyse).toLocaleDateString('fr')}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <Badge className={riskColor(a.niveau_risque)}>{a.niveau_risque}</Badge>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              </div>
                             </div>
-                            <Badge className={riskColor(a.niveau_risque)}>{a.niveau_risque}</Badge>
-                          </div>
+                          </Link>
                         ))}
                       </div>
                     )}
@@ -386,15 +392,20 @@ const ProfessionalDashboard = () => {
                     ) : (
                       <div className="space-y-2">
                         {patientDossier.treatments?.map((t: any) => (
-                          <div key={t.uuid} className="flex items-center justify-between rounded-lg border p-3">
-                            <div>
-                              <p className="font-medium">{t.titre}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {t.pathologie_nom} - {t.total_entries} entrees
-                              </p>
+                          <Link key={t.uuid} to={`/patients/${selectedPatient?.id}/treatments/${t.uuid}`} className="group block">
+                            <div className="flex items-center justify-between rounded-lg border p-3 transition-colors group-hover:bg-muted/50">
+                              <div>
+                                <p className="font-medium">{t.titre}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {t.pathologie_nom} - {t.total_entries} entrees
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <Badge variant="outline">{t.status}</Badge>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              </div>
                             </div>
-                            <Badge variant="outline">{t.status}</Badge>
-                          </div>
+                          </Link>
                         ))}
                       </div>
                     )}

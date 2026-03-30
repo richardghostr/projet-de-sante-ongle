@@ -185,6 +185,95 @@ function db() {
     return Database::getInstance();
 }
 
+// Ensure `professional_notes.read_at` exists (for older DBs)
+try {
+    $pdo = get_db();
+    if ($pdo) {
+        $schema = $GLOBALS['config']['db']['database'];
+        $check = db()->fetchOne(
+            'SELECT COUNT(*) as cnt FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+            [$schema, 'professional_notes', 'read_at']
+        );
+        if ($check && intval($check['cnt']) === 0) {
+            Logger::info('bootstrap: adding missing professional_notes.read_at column');
+            db()->exec("ALTER TABLE professional_notes ADD COLUMN `read_at` TIMESTAMP NULL AFTER `updated_at`");
+        }
+    }
+} catch (Exception $e) {
+    // Non-fatal: log and continue
+    Logger::warning('bootstrap: could not ensure professional_notes.read_at', ['error' => $e->getMessage()]);
+}
+
+// Ensure extended profile columns and professional_documents table exist
+try {
+    $pdo = get_db();
+    if ($pdo) {
+        $schema = $GLOBALS['config']['db']['database'];
+
+        // Columns to ensure on `users`
+        $cols = [
+            'nationalite' => 'VARCHAR(100) NULL',
+            'groupe_sanguin' => 'VARCHAR(10) NULL',
+            'allergies' => 'TEXT NULL',
+            'antecedents' => 'TEXT NULL',
+            'traitement_en_cours' => 'TEXT NULL',
+            'contact_urgence' => 'VARCHAR(255) NULL',
+            'telephone_urgence' => 'VARCHAR(50) NULL',
+            'profession' => 'VARCHAR(255) NULL',
+            'adresse' => 'VARCHAR(512) NULL',
+            'ville' => 'VARCHAR(255) NULL',
+            'pays' => 'VARCHAR(255) NULL',
+
+            // Professional specific
+            'specialite' => 'VARCHAR(255) NULL',
+            'sous_specialite' => 'VARCHAR(255) NULL',
+            'matricule' => 'VARCHAR(100) NULL',
+            'numero_ordre' => 'VARCHAR(100) NULL',
+            'etablissement' => 'VARCHAR(255) NULL',
+            'annees_experience' => 'INT NULL',
+            'grade' => 'VARCHAR(255) NULL',
+            'disponibilites_text' => 'TEXT NULL',
+            'statut' => 'VARCHAR(50) NULL'
+        ];
+
+        foreach ($cols as $col => $definition) {
+            $check = db()->fetchOne(
+                'SELECT COUNT(*) as cnt FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+                [$schema, 'users', $col]
+            );
+            if ($check && intval($check['cnt']) === 0) {
+                Logger::info('bootstrap: adding missing users.' . $col);
+                db()->query("ALTER TABLE users ADD COLUMN `$col` $definition AFTER updated_at");
+            }
+        }
+
+        // Create professional_documents table if missing
+        $tblCheck = db()->fetchOne(
+            'SELECT COUNT(*) as cnt FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?',
+            [$schema, 'professional_documents']
+        );
+        if (!$tblCheck || intval($tblCheck['cnt']) === 0) {
+            Logger::info('bootstrap: creating professional_documents table');
+            db()->query(
+                "CREATE TABLE professional_documents (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    uuid VARCHAR(64) NOT NULL,
+                    user_id INT NOT NULL,
+                    filename VARCHAR(255) NOT NULL,
+                    url VARCHAR(512) NOT NULL,
+                    type VARCHAR(100) DEFAULT NULL,
+                    verified TINYINT(1) DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP NULL DEFAULT NULL,
+                    INDEX(user_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+        }
+    }
+} catch (Exception $e) {
+    Logger::warning('bootstrap: could not ensure extended profile schema', ['error' => $e->getMessage()]);
+}
+
 // ============================================
 // Classe Logger
 // ============================================
