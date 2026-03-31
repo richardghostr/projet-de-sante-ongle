@@ -5,6 +5,7 @@ import { Navbar } from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import AccessDenied from '@/components/AccessDenied';
 
 const AdminAnalysisDetail = () => {
   const { id } = useParams();
@@ -96,20 +97,7 @@ const AdminAnalysisDetail = () => {
   );
 
   if (accessDenied) return (
-    <div className="min-h-screen"><Navbar /><main className="container py-8">
-      <div className="max-w-2xl mx-auto p-6 text-center">
-        <div className="mb-6 inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-50 mx-auto">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-red-600" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M9.401 2.066a1 1 0 01.198 0l6 1.5A1 1 0 0117 4.5v6.09a6.5 6.5 0 11-12 0V4.5a1 1 0 01.401-.934l6-1.5zM9 8a1 1 0 012 0v3a1 1 0 11-2 0V8z" clipRule="evenodd" />
-          </svg>
-        </div>
-        <h2 className="text-2xl font-semibold mb-2">Accès refusé</h2>
-        <p className="text-sm text-muted-foreground mb-6">{accessMessage ?? 'Vous n\'avez pas les permissions nécessaires pour accéder à cette analyse.'}</p>
-        <div className="flex items-center justify-center">
-          <Link to="/admin" className="inline-block bg-emerald-500 text-white px-4 py-2 rounded hover:bg-emerald-600">Retour au tableau de bord</Link>
-        </div>
-      </div>
-    </main></div>
+    <div className="min-h-screen"><Navbar /><main className="container py-8"><AccessDenied message={accessMessage} backTo="/admin" backLabel="Retour au tableau de bord"/></main></div>
   );
 
   if (!analysis) return (

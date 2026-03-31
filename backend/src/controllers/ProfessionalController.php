@@ -236,10 +236,11 @@ class ProfessionalController {
             Response::notFound('Patient non trouve');
         }
         
-        // Analyses
+        // Analyses: retourner la liste complète (métadonnées) mais exposer le champ visibility_status
+        // Le contrôle d'accès détaillé reste effectué lors de la consultation d'une analyse individuelle
         $analyses = db()->fetchAll(
-            'SELECT uuid, pathologie_label, score_confiance, niveau_risque, status, date_analyse
-             FROM analyses WHERE user_id = ? AND visibility_status = 1 ORDER BY date_analyse DESC LIMIT 20',
+            'SELECT uuid, pathologie_label, score_confiance, niveau_risque, status, date_analyse, visibility_status
+             FROM analyses WHERE user_id = ? ORDER BY date_analyse DESC LIMIT 20',
             [$patientId]
         );
         

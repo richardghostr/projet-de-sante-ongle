@@ -5,6 +5,7 @@ import { Navbar } from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import AccessDenied from '@/components/AccessDenied';
 
 const PatientAnalysisDetail = () => {
   const { patientId, id } = useParams<{ patientId: string; id: string }>();
@@ -12,6 +13,8 @@ const PatientAnalysisDetail = () => {
   const [conseils, setConseils] = useState<any[]>([]);
   const [ownerName, setOwnerName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [accessMessage, setAccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -74,8 +77,13 @@ const PatientAnalysisDetail = () => {
         } catch (e) {
           // ignore owner resolution failures
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to load analysis', err);
+        const status = err?.status || err?.response?.status || err?.statusCode;
+        if (status === 403) {
+          setAccessDenied(true);
+          setAccessMessage(err?.message || (err?.response?.data?.message) || 'Accès non autorisé');
+        }
       } finally {
         setLoading(false);
       }
@@ -90,6 +98,7 @@ const PatientAnalysisDetail = () => {
   };
 
   if (loading) return (<div className="min-h-screen"><Navbar /><main className="container py-8">Chargement...</main></div>);
+  if (accessDenied) return (<div className="min-h-screen"><Navbar /><main className="container py-8"><AccessDenied message={accessMessage} backTo="/professional" backLabel="Retour"/></main></div>);
   if (!analysis) return (<div className="min-h-screen"><Navbar /><main className="container py-8">Analyse introuvable</main></div>);
 
   return (

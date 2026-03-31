@@ -374,6 +374,14 @@ const ProfessionalDashboard = () => {
                                 </p>
                               </div>
                               <div className="flex items-center gap-3">
+                                {/* visibility badge: 1 = shared, 0/other = private */}
+                                {typeof a.visibility_status !== 'undefined' && (
+                                  a.visibility_status == 1 ? (
+                                    <Badge variant="outline" className="text-emerald-600">Partagé</Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-muted-foreground">Privé</Badge>
+                                  )
+                                )}
                                 <Badge className={riskColor(a.niveau_risque)}>{a.niveau_risque}</Badge>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
                               </div>
