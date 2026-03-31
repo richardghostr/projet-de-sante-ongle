@@ -108,6 +108,9 @@ class ApiClient {
   }
   getAnalysisDetail(id: string) { return this.request(`/history/${id}`, { method: 'GET' }); }
   deleteAnalysis(id: string) { return this.request(`/history/${id}`, { method: 'DELETE' }); }
+  updateAnalysisVisibility(analysisId: string | number, visibilityStatus: 0 | 1) {
+    return this.request('/analysis/update-visibility', { method: 'POST', body: JSON.stringify({ analysis_id: analysisId, visibility_status: visibilityStatus }) });
+  }
   getStatistics() { return this.request('/history/stats', { method: 'GET' }); }
   exportHistory(format = 'json') { return this.request(`/history/export?format=${format}`, { method: 'GET' }); }
 

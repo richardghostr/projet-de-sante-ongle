@@ -82,6 +82,11 @@ try {
         AnalysisController::get($matches[1]);
     }
     
+    elseif ($uri === '/analysis/update-visibility' && $method === 'POST') {
+        require_once __DIR__ . '/controllers/AnalysisController.php';
+        AnalysisController::updateVisibility();
+    }
+    
     elseif (preg_match('#^/analysis/([a-zA-Z0-9-]+)/feedback$#', $uri, $matches) && $method === 'POST') {
         require_once __DIR__ . '/controllers/AnalysisController.php';
         AnalysisController::feedback($matches[1]);

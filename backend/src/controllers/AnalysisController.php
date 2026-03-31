@@ -259,9 +259,22 @@ class AnalysisController {
             Response::notFound('Analyse non trouvee');
         }
         
-        // Verifier l'acces (si connecte, doit etre le proprietaire ou admin)
-        if ($user && $analysis['user_id'] && $analysis['user_id'] != $user['id'] && $user['role'] !== 'admin') {
-            Response::forbidden('Acces non autorise');
+        // Verifier l'acces (si connecte, doit etre le proprietaire ou role autorise ET visibility partagee)
+        if (isset($analysis['user_id']) && $analysis['user_id'] != ($user['id'] ?? null)) {
+            $allowed = false;
+            // Admins and professionals are allowed only if the patient has shared the analysis
+            $vis = (int)($analysis['visibility_status'] ?? 0);
+            if ($user && isset($user['role'])) {
+                if ($user['role'] === 'admin' && $vis === 1) $allowed = true;
+                if ($user['role'] === 'professional' && $vis === 1) {
+                    // professionals also require an active link to the patient
+                    $link = db()->fetchOne('SELECT id FROM professional_patient_links WHERE professional_id = ? AND patient_id = ? AND status = "active"', [$user['id'], $analysis['user_id']]);
+                    if ($link) $allowed = true;
+                }
+            }
+            if (!$allowed) {
+                Response::forbidden('Acces non autorise');
+            }
         }
         
         $conseils = self::getConseils($analysis['id'] ?? $analysis['uuid']);
@@ -288,6 +301,62 @@ class AnalysisController {
             ],
             'conseils' => $conseils
         ]);
+    }
+
+    /**
+     * POST /api/analysis/update-visibility - Update visibility_status for an analysis
+     */
+    public static function updateVisibility() {
+        $user = Auth::requireAuth();
+        $data = getRequestBody();
+
+        $analysisId = $data['analysis_id'] ?? $data['id'] ?? null;
+        if (!$analysisId) {
+            Response::error('analysis_id requis', 400);
+        }
+
+        $analysis = self::getAnalysis($analysisId);
+        if (!$analysis) {
+            Response::notFound('Analyse non trouvee');
+        }
+
+        // Seul le proprietaire peut modifier la visibilite
+        if (!isset($analysis['user_id']) || $analysis['user_id'] != $user['id']) {
+            Response::forbidden('Seul le proprietaire peut modifier la visibilite');
+        }
+
+        $vis = null;
+        if (isset($data['visibility_status'])) {
+            $vis = (int)$data['visibility_status'];
+        } elseif (isset($data['visibility'])) {
+            // allow 'private'/'shared'
+            $vis = ($data['visibility'] === 'shared') ? 1 : 0;
+        }
+
+        if (!in_array($vis, [0,1], true)) {
+            Response::error('visibility_status invalide (0 ou 1 requis)', 400);
+        }
+
+        $pdo = get_db();
+        if ($pdo && is_numeric($analysis['id'])) {
+            db()->update('analyses', ['visibility_status' => $vis], 'id = ?', [$analysis['id']]);
+        } else {
+            // Fallback fichier
+            $analysesFile = __DIR__ . '/../../storage/data/analyses.json';
+            if (file_exists($analysesFile)) {
+                $analyses = json_decode(file_get_contents($analysesFile), true) ?: [];
+                foreach ($analyses as &$a) {
+                    if (($a['id'] ?? '') == $analysisId || ($a['uuid'] ?? '') == $analysisId) {
+                        $a['visibility_status'] = $vis;
+                        break;
+                    }
+                }
+                file_put_contents($analysesFile, json_encode($analyses, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            }
+        }
+
+        Logger::info('Analysis visibility updated', ['analysis_id' => $analysisId, 'visibility' => $vis, 'user_id' => $user['id']]);
+        Response::success(['visibility_status' => $vis], 'Visibilite mise a jour');
     }
     
     /**

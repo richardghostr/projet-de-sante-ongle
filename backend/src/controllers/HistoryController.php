@@ -124,6 +124,7 @@ class HistoryController {
                 'score_confiance' => isset($a['score_confiance']) ? round((float)$a['score_confiance'], 2) : null,
                 'niveau_risque' => $a['niveau_risque'] ?? null,
                 'status' => $a['status'] ?? 'unknown',
+                'visibility_status' => isset($a['visibility_status']) ? (int)$a['visibility_status'] : 0,
                 'doigt_concerne' => $a['doigt_concerne'] ?? null,
                 'main_pied' => $a['main_pied'] ?? null,
                 'date_analyse' => $a['date_analyse'] ?? null,
@@ -174,6 +175,12 @@ class HistoryController {
             if (!$allowed && isset($user['role']) && $user['role'] === 'professional') {
                 $link = db()->fetchOne('SELECT id FROM professional_patient_links WHERE professional_id = ? AND patient_id = ? AND status = "active"', [$user['id'], $analysis['user_id']]);
                 if ($link) $allowed = true;
+            }
+
+            // Even if role allows, patient must have shared the analysis
+            if ($allowed) {
+                $vis = (int)($analysis['visibility_status'] ?? 0);
+                if ($vis !== 1) $allowed = false;
             }
 
             if (!$allowed) {

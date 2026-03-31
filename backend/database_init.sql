@@ -176,6 +176,7 @@ CREATE TABLE `analyses` (
   `model_version` VARCHAR(64) DEFAULT NULL,
   `processing_time_ms` INT UNSIGNED DEFAULT NULL,
   `heatmap_path` VARCHAR(512) DEFAULT NULL,
+  `visibility_status` TINYINT(1) DEFAULT 0,
   `segmentation_path` VARCHAR(512) DEFAULT NULL,
   `status` ENUM('pending', 'processing', 'completed', 'failed', 'archived') DEFAULT 'pending',
   `error_message` TEXT DEFAULT NULL,
@@ -190,6 +191,7 @@ CREATE TABLE `analyses` (
   INDEX `idx_niveau_risque` (`niveau_risque`),
   INDEX `idx_date` (`date_analyse`),
   INDEX `idx_pathologie` (`pathologie_detectee_id`),
+  INDEX `idx_visibility` (`visibility_status`),
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE SET NULL,
   FOREIGN KEY (`pathologie_detectee_id`) REFERENCES `pathologies`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

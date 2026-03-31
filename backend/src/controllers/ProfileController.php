@@ -154,12 +154,24 @@ class ProfileController {
                         $updateData[$field] = $data[$field];
                     }
                 } else {
-                    // If value is array, encode as JSON instead of trimming
-                    if (is_array($data[$field])) {
-                        $updateData[$field] = json_encode($data[$field]);
-                    } else {
-                        $updateData[$field] = trim($data[$field]);
-                    }
+                        // If value is array, encode as JSON instead of trimming
+                        if (is_array($data[$field])) {
+                            $updateData[$field] = json_encode($data[$field]);
+                        } else {
+                            $val = trim($data[$field]);
+                            // Do not allow empty 'nom' to overwrite an existing name
+                            if ($field === 'nom') {
+                                if ($val === '') {
+                                    Response::error('Le nom est requis', 422);
+                                }
+                                $updateData[$field] = $val;
+                            } elseif ($field === 'prenom') {
+                                // empty prenom should be stored as NULL rather than empty string
+                                $updateData[$field] = ($val === '' ? null : $val);
+                            } else {
+                                $updateData[$field] = $val;
+                            }
+                        }
                 }
             }
         }

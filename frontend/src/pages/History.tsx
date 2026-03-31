@@ -3,6 +3,7 @@ import { api } from '@/lib/api';
 import { Navbar } from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Clock, Activity, Trash2, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -10,6 +11,7 @@ import { Link } from 'react-router-dom';
 const History = () => {
   const { toast } = useToast();
   const [analyses, setAnalyses] = useState<any[]>([]);
+  const [profileId, setProfileId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -32,6 +34,18 @@ const History = () => {
 
   useEffect(() => { load(1); }, []);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const meRes: any = await api.getProfile();
+        const prof = (meRes.data || meRes)?.profile || (meRes.data || meRes)?.user || (meRes.data || meRes);
+        if (prof && prof.id) setProfileId(Number(prof.id));
+      } catch (e) {
+        // ignore
+      }
+    })();
+  }, []);
+
   const handleDelete = async (id: string) => {
     if (!confirm('Supprimer cette analyse ?')) return;
     try {
@@ -39,6 +53,20 @@ const History = () => {
       toast({ title: 'Analyse supprimée' });
       load(page);
     } catch (err: any) {
+      toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const toggleVisibility = async (analysisId: string | number, current: number) => {
+    const newVis = current === 1 ? 0 : 1;
+    try {
+      // Optimistic update
+      setAnalyses(prev => prev.map(a => (a.id === analysisId || a.uuid === analysisId ? { ...a, visibility_status: newVis } : a)));
+      await api.updateAnalysisVisibility(analysisId, newVis as 0 | 1);
+      toast({ title: 'Visibilité mise à jour' });
+    } catch (err: any) {
+      // Revert on error
+      setAnalyses(prev => prev.map(a => (a.id === analysisId || a.uuid === analysisId ? { ...a, visibility_status: current } : a)));
       toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
     }
   };
@@ -93,8 +121,22 @@ const History = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
+                      {profileId ? (
+                        <Link to={`/patients/${profileId}/history/${a.id || a.uuid}`} className="text-primary mr-2">Voir</Link>
+                      ) : null}
                       <span className={`rounded-full px-3 py-1 text-xs font-semibold ${riskColor(a.niveau_risque)}`}>
                         {a.niveau_risque || a.status}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground mr-1">Confidentialité</span>
+                        <Switch
+                          aria-label="Autoriser la consultation par les professionnels et administrateurs"
+                          checked={!!(a.visibility_status === 1)}
+                          onCheckedChange={() => toggleVisibility(a.id || a.uuid, a.visibility_status ?? 0)}
+                        />
+                      </div>
+                      <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-semibold ${a.visibility_status === 1 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                        {a.visibility_status === 1 ? 'visible aux professionnels' : 'privé'}
                       </span>
                       <Button variant="ghost" size="icon" onClick={() => handleDelete(a.id || a.uuid)} className="text-muted-foreground hover:text-destructive">
                         <Trash2 className="h-4 w-4" />

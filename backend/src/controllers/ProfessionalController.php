@@ -239,7 +239,7 @@ class ProfessionalController {
         // Analyses
         $analyses = db()->fetchAll(
             'SELECT uuid, pathologie_label, score_confiance, niveau_risque, status, date_analyse
-             FROM analyses WHERE user_id = ? ORDER BY date_analyse DESC LIMIT 20',
+             FROM analyses WHERE user_id = ? AND visibility_status = 1 ORDER BY date_analyse DESC LIMIT 20',
             [$patientId]
         );
         
