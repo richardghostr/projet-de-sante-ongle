@@ -497,7 +497,7 @@ const Analyze = () => {
                     {/* Consult a Professional */}
                     <Card 
                       className="cursor-pointer border-2 border-transparent transition-all hover:border-amber-500 hover:shadow-md"
-                      onClick={() => navigate("/patient/profile")}
+                      onClick={() => navigate(`/consult/${uploadResponse?.uuid || uploadResponse?.analysis_id || (result && (result as any).uuid) || ''}`)}
                     >
                       <CardContent className="flex items-start gap-4 p-4">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600">

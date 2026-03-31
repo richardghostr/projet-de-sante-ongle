@@ -297,6 +297,48 @@ try {
         require_once __DIR__ . '/controllers/AdminController.php';
         AdminController::listProfessionalsPendingValidation();
     }
+
+    // ============================================
+    // Follow-up / professionals discovery
+    // ============================================
+    elseif ($uri === '/professionals' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/FollowUpController.php';
+        FollowUpController::listProfessionals();
+    }
+
+    elseif ($uri === '/follow-up/request' && $method === 'POST') {
+        require_once __DIR__ . '/controllers/FollowUpController.php';
+        FollowUpController::createRequest();
+    }
+
+    // Professional: list follow-up requests
+    elseif ($uri === '/professional/follow-requests' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/FollowUpController.php';
+        FollowUpController::listForProfessional();
+    }
+
+    elseif (preg_match('#^/professional/follow-requests/(\d+)/(accept|reject)$#', $uri, $matches) && $method === 'POST') {
+        require_once __DIR__ . '/controllers/FollowUpController.php';
+        FollowUpController::handleRequestAction($matches[1], $matches[2]);
+    }
+
+    // Patient: list my follow-up requests
+    elseif ($uri === '/patient/follow-requests' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/FollowUpController.php';
+        FollowUpController::listForPatient();
+    }
+
+    // Patient: list active professionals linked to me
+    elseif ($uri === '/patient/active-professionals' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/FollowUpController.php';
+        FollowUpController::listActiveForPatient();
+    }
+
+    // Admin: list all follow-up requests
+    elseif ($uri === '/admin/follow-requests' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/FollowUpController.php';
+        FollowUpController::listForAdmin();
+    }
     
     elseif ($uri === '/admin/analyses' && $method === 'GET') {
         require_once __DIR__ . '/controllers/AdminController.php';

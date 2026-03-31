@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
 
 type Props = {
   message?: string | null;
@@ -6,18 +7,40 @@ type Props = {
   backLabel?: string;
 };
 
-const AccessDenied = ({ message = null, backTo = '/', backLabel = 'Retour' }: Props) => {
+const AccessDenied = ({ message = null, backTo = '/', backLabel = 'Retour au tableau de bord' }: Props) => {
   return (
-    <div className="max-w-2xl mx-auto p-6 text-center">
-      <div className="mb-6 inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-50 mx-auto">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-red-600" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M9.401 2.066a1 1 0 01.198 0l6 1.5A1 1 0 0117 4.5v6.09a6.5 6.5 0 11-12 0V4.5a1 1 0 01.401-.934l6-1.5zM9 8a1 1 0 012 0v3a1 1 0 11-2 0V8z" clipRule="evenodd" />
-        </svg>
-      </div>
-      <h2 className="text-2xl font-semibold mb-2">Accès refusé</h2>
-      <p className="text-sm text-muted-foreground mb-6">{message ?? "Vous n'avez pas les permissions nécessaires pour accéder à cette page."}</p>
-      <div className="flex items-center justify-center">
-        <Link to={backTo} className="inline-block bg-emerald-500 text-white px-4 py-2 rounded hover:bg-emerald-600">{backLabel}</Link>
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="w-full max-w-3xl bg-white shadow-lg rounded-lg p-8">
+        <div className="flex items-start gap-6">
+          <div className="flex-shrink-0">
+            <div className="flex items-center justify-center h-20 w-20 rounded-lg bg-red-50">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 17h.01" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+
+          <div className="flex-1">
+            <h2 className="text-2xl font-semibold mb-2">Accès refusé</h2>
+            <p className="text-sm text-muted-foreground mb-4">{message ?? "Vous n'avez pas les permissions nécessaires pour accéder à cette page ou à ce contenu."}</p>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Link to={backTo} className="inline-flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded shadow-sm hover:bg-emerald-700">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M9.707 14.707a1 1 0 01-1.414 0L3.586 10l4.707-4.707a1 1 0 111.414 1.414L6.414 10l3.293 3.293a1 1 0 010 1.414z"/></svg>
+                {backLabel}
+              </Link>
+
+              <Link to="/contact" className="inline-flex items-center gap-2 border border-gray-200 px-4 py-2 rounded text-sm hover:bg-gray-50">
+                Contacter l'administrateur
+              </Link>
+
+              <Badge variant="outline" className="bg-red-50 text-red-700">Accès restreint</Badge>
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
   );

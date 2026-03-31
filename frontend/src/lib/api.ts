@@ -310,6 +310,54 @@ class ApiClient {
   getTreatmentStats(uuid: string) {
     return this.request(`/treatments/${uuid}/stats`, { method: 'GET' });
   }
+
+  // ============================================
+  // Follow-up / professionals discovery
+  // ============================================
+  listProfessionals(params?: { q?: string; specialty?: string; sort?: string }) {
+    const query = new URLSearchParams();
+    if (params?.q) query.set('q', params.q);
+    if (params?.specialty) query.set('specialty', params.specialty);
+    if (params?.sort) query.set('sort', params.sort);
+    const q = query.toString() ? `?${query.toString()}` : '';
+    // Normalize response shape: API may return { success, message, data: { professionals: [...] } }
+    return this.request(`/professionals${q}`, { method: 'GET' }).then((res: any) => {
+      const list = res?.data?.professionals ?? res?.professionals ?? [];
+      return { professionals: list };
+    });
+  }
+
+  createFollowUpRequest(data: { professional_id: number; analysis_uuid: string; message?: string }) {
+    return this.request('/follow-up/request', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  // Professional: follow-up requests
+  getProfessionalFollowRequests() {
+    return this.request('/professional/follow-requests', { method: 'GET' });
+  }
+
+  handleFollowRequestAction(requestId: number, action: 'accept' | 'reject') {
+    return this.request(`/professional/follow-requests/${requestId}/${action}`, { method: 'POST' });
+  }
+
+  // Patient follow-up requests
+  getMyFollowRequests() {
+    return this.request('/patient/follow-requests', { method: 'GET' });
+  }
+
+  // Patient: list active professionals in relation with the patient
+  // returns { professionals: [...] }
+  getPatientActiveProfessionals() {
+    return this.request('/patient/active-professionals', { method: 'GET' }).then((res: any) => {
+      const list = res?.data?.professionals ?? res?.professionals ?? res ?? [];
+      return { professionals: list };
+    });
+  }
+
+  // Admin
+  getAdminFollowRequests() {
+    return this.request('/admin/follow-requests', { method: 'GET' });
+  }
   postTreatmentMessage(uuid: string, message: string) {
     return this.request(`/treatments/${uuid}/messages`, { method: 'POST', body: JSON.stringify({ message }) });
   }
