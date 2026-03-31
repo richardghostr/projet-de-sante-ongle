@@ -86,7 +86,7 @@ class AdminController {
             $params[] = $role;
         }
         
-        if ($status && in_array($status, ['active', 'inactive', 'suspended', 'deleted', 'pending_verification'])) {
+        if ($status && in_array($status, ['active', 'inactive', 'suspended', 'deleted', 'pending', 'approved', 'pending_verification'])) {
             $where .= ' AND status = ?';
             $params[] = $status;
         }
@@ -204,10 +204,10 @@ class AdminController {
         $admin = Auth::requireRole(['admin']);
         $data = getRequestBody();
         
-        $validator = new Validator($data);
-        $validator->required('status')
-                  ->in('status', ['active', 'inactive', 'suspended', 'deleted']);
-        $validator->validate();
+          $validator = new Validator($data);
+          $validator->required('status')
+              ->in('status', ['active', 'inactive', 'suspended', 'deleted', 'pending', 'approved']);
+          $validator->validate();
         
         // Cannot change own status
         if ($userId == $admin['id']) {
@@ -219,7 +219,25 @@ class AdminController {
             Response::notFound('Utilisateur non trouve');
         }
         
-        db()->update('users', ['status' => $data['status']], 'id = ?', [$userId]);
+        // Some deployments may not have 'approved' in users.status enum.
+        // Map 'approved' to 'active' when writing to users.status to avoid enum truncation.
+        $statusToWrite = ($data['status'] === 'approved') ? 'active' : $data['status'];
+        db()->update('users', ['status' => $statusToWrite], 'id = ?', [$userId]);
+
+        // If approving/rejecting a professional, sync professional_profiles.statut_validation
+        if (in_array($data['status'], ['approved', 'pending'])) {
+            $roleRow = db()->fetchOne('SELECT role FROM users WHERE id = ?', [$userId]);
+            if ($roleRow && ($roleRow['role'] ?? '') === 'professional') {
+                // Ensure professional_profiles row exists
+                $pp = db()->fetchOne('SELECT id FROM professional_profiles WHERE user_id = ?', [$userId]);
+                if ($pp) {
+                    db()->update('professional_profiles', ['statut_validation' => $data['status']], 'user_id = ?', [$userId]);
+                } else {
+                    // create minimal profile if missing
+                    db()->insert('professional_profiles', ['user_id' => $userId, 'statut_validation' => $data['status'], 'created_at' => date('Y-m-d H:i:s')]);
+                }
+            }
+        }
         
         Logger::info('User status updated', [
             'admin_id' => $admin['id'],
@@ -420,21 +438,105 @@ class AdminController {
             Response::notFound('Utilisateur professionnel non trouve');
         }
         
-        $verified = $data['verified'] ?? true;
-        $newStatus = $verified ? 'active' : 'pending_verification';
-        
-        db()->update('users', [
-            'status' => $newStatus,
-            'email_verified' => $verified ? 1 : 0,
-            'email_verified_at' => $verified ? date('Y-m-d H:i:s') : null
-        ], 'id = ?', [$userId]);
-        
-        Logger::info('Professional verified', [
-            'admin_id' => $admin['id'],
-            'user_id' => $userId,
-            'verified' => $verified
-        ]);
-        
-        Response::success(['message' => $verified ? 'Professionnel verifie' : 'Verification annulee']);
+        $verified = isset($data['verified']) ? (bool)$data['verified'] : true;
+        // If admin tries to approve the professional, ensure all their documents are approved first
+        if ($verified) {
+            // fetch documents for the user
+            $docs = db()->fetchAll('SELECT id, statut_validation FROM professional_documents WHERE user_id = ?', [$userId]);
+            $allApproved = true;
+            if (empty($docs)) {
+                $allApproved = false;
+            } else {
+                foreach ($docs as $d) {
+                    if (($d['statut_validation'] ?? '') !== 'approved') { $allApproved = false; break; }
+                }
+            }
+
+            if (!$allApproved) {
+                // Instruct admin to validate all documents first and provide redirect URL
+                $redirect = '/admin/validate-professionals?userId=' . urlencode($userId);
+                Logger::info('Attempted to verify professional but documents pending', ['admin_id' => $admin['id'], 'user_id' => $userId]);
+                Response::error('Tous les documents du professionnel doivent etre approuves avant de valider le profil. Veuillez valider les documents d abord.', 409, ['redirect' => $redirect]);
+            }
+
+            // All documents approved -> proceed to approve user
+            db()->update('users', [
+                'status' => 'approved',
+                'email_verified' => 1,
+                'email_verified_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
+            ], 'id = ?', [$userId]);
+
+            // Sync professional_profiles validation status
+            $pp = db()->fetchOne('SELECT id FROM professional_profiles WHERE user_id = ?', [$userId]);
+            if ($pp) {
+                db()->update('professional_profiles', ['statut_validation' => 'approved', 'updated_at' => date('Y-m-d H:i:s')], 'user_id = ?', [$userId]);
+            } else {
+                db()->insert('professional_profiles', ['user_id' => $userId, 'statut_validation' => 'approved', 'created_at' => date('Y-m-d H:i:s')]);
+            }
+
+            // Notify the professional user that their account has been approved
+            db()->insert('notifications', [
+                'user_id' => $userId,
+                'type' => 'success',
+                'titre' => 'Compte professionnel approuve',
+                'message' => 'Votre compte professionnel a ete approuve par un administrateur. Bienvenue!',
+                'link' => '/professional/profile'
+            ]);
+
+            Logger::info('Professional fully verified', [
+                'admin_id' => $admin['id'],
+                'user_id' => $userId,
+                'verified' => true
+            ]);
+
+            Response::success(['message' => 'Professionnel verifie et profil active']);
+        } else {
+            // un-verify -> set pending
+            db()->update('users', [
+                'status' => 'pending',
+                'email_verified' => 0,
+                'email_verified_at' => null,
+                'updated_at' => date('Y-m-d H:i:s')
+            ], 'id = ?', [$userId]);
+            $pp = db()->fetchOne('SELECT id FROM professional_profiles WHERE user_id = ?', [$userId]);
+            if ($pp) {
+                db()->update('professional_profiles', ['statut_validation' => 'pending', 'updated_at' => date('Y-m-d H:i:s')], 'user_id = ?', [$userId]);
+            } else {
+                db()->insert('professional_profiles', ['user_id' => $userId, 'statut_validation' => 'pending', 'created_at' => date('Y-m-d H:i:s')]);
+            }
+            Logger::info('Professional verification revoked', ['admin_id' => $admin['id'], 'user_id' => $userId]);
+            Response::success(['message' => 'Verification annulee']);
+        }
+    }
+
+    /**
+     * GET /api/admin/professionals/pending - liste des professionnels en attente avec documents
+     */
+    public static function listProfessionalsPendingValidation() {
+        Auth::requireRole(['admin']);
+
+        $pdo = get_db();
+        if (!$pdo) {
+            Response::success(['professionals' => []]);
+            return;
+        }
+
+        // Select professionals with status pending or role professional with professional_profiles.statut_validation = 'pending'
+        $professionals = db()->fetchAll(
+            'SELECT u.id, u.nom, u.prenom, u.email, u.specialite, u.created_at, u.status, pp.statut_validation
+             FROM users u
+             LEFT JOIN professional_profiles pp ON pp.user_id = u.id
+             WHERE u.role = "professional" AND (u.status = "pending" OR pp.statut_validation = "pending")
+             ORDER BY u.created_at DESC'
+        );
+
+        // Attach documents for each professional
+        foreach ($professionals as &$p) {
+            $docs = db()->fetchAll('SELECT id, uuid, filename, url, type, type_document, statut_validation, commentaire_admin, date_validation, created_at FROM professional_documents WHERE user_id = ? ORDER BY created_at DESC', [$p['id']]);
+            $p['documents'] = $docs;
+        }
+
+        Response::success(['professionals' => $professionals]);
     }
 }

@@ -33,13 +33,24 @@ class AuthController {
             Response::error('Cet email est deja utilise', 409);
         }
         
+        // Determine role and initial status
+        $requestedRole = isset($data['role']) ? strtolower(trim($data['role'])) : 'user';
+        // Map some common synonyms (frontend may send 'patient')
+        if ($requestedRole === 'patient') $requestedRole = 'user';
+
+        $initialStatus = 'active';
+        if ($requestedRole === 'professional' || $requestedRole === 'professionnel') {
+            $requestedRole = 'professional';
+            $initialStatus = 'pending'; // account must be validated by admin
+        }
+
         $userData = [
             'nom' => $nom,
             'prenom' => $prenom,
             'email' => $email,
             'password_hash' => $passwordHash,
-            'role' => 'user',
-            'status' => 'active',
+            'role' => $requestedRole,
+            'status' => $initialStatus,
             'consent_data' => isset($data['consent_data']) ? (int)$data['consent_data'] : 0,
             'consent_date' => isset($data['consent_data']) && $data['consent_data'] ? date('Y-m-d H:i:s') : null,
             'created_at' => date('Y-m-d H:i:s'),
@@ -54,8 +65,31 @@ class AuthController {
                     Logger::info('User registered', ['user_id' => $userId, 'email' => $email]);
                     self::logAction($userId, 'register', 'Inscription reussie');
                     
+                    // Create minimal empty profile rows depending on role
+                    if ($requestedRole === 'user') {
+                        try {
+                            db()->insert('patient_profiles', [
+                                'user_id' => $userId,
+                                'created_at' => date('Y-m-d H:i:s')
+                            ]);
+                        } catch (Exception $e) {
+                            // non-fatal
+                            Logger::warning('Could not create patient_profiles row', ['user_id' => $userId, 'error' => $e->getMessage()]);
+                        }
+                    } elseif ($requestedRole === 'professional') {
+                        try {
+                            db()->insert('professional_profiles', [
+                                'user_id' => $userId,
+                                'statut_validation' => 'pending',
+                                'created_at' => date('Y-m-d H:i:s')
+                            ]);
+                        } catch (Exception $e) {
+                            Logger::warning('Could not create professional_profiles row', ['user_id' => $userId, 'error' => $e->getMessage()]);
+                        }
+                    }
+
                     // Generer le token JWT
-                    $token = JWT::encode(['user_id' => $userId, 'email' => $email, 'role' => 'user']);
+                    $token = JWT::encode(['user_id' => $userId, 'email' => $email, 'role' => $requestedRole]);
                     
                     Response::created([
                         'user' => [
@@ -84,18 +118,27 @@ class AuthController {
         
         $users[] = $userData;
         file_put_contents($usersFile, json_encode($users, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        
-        $token = JWT::encode(['user_id' => $userData['id'], 'email' => $email, 'role' => 'user']);
-        
+
+        // Fallback: create minimal profile file(s)
+        if ($requestedRole === 'user') {
+            $pf = __DIR__ . '/../../storage/data/patient_profile_' . $userData['id'] . '.json';
+            file_put_contents($pf, json_encode(['user_id' => $userData['id'], 'created_at' => date('c')], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        } elseif ($requestedRole === 'professional') {
+            $pf = __DIR__ . '/../../storage/data/professional_profile_' . $userData['id'] . '.json';
+            file_put_contents($pf, json_encode(['user_id' => $userData['id'], 'statut_validation' => 'pending', 'created_at' => date('c')], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        }
+
+        $token = JWT::encode(['user_id' => $userData['id'], 'email' => $email, 'role' => $requestedRole]);
+
         Logger::info('User registered (file)', ['user_id' => $userData['id'], 'email' => $email]);
-        
+
         Response::created([
             'user' => [
                 'id' => $userData['id'],
                 'nom' => $nom,
                 'prenom' => $prenom,
                 'email' => $email,
-                'role' => 'user'
+                'role' => $requestedRole
             ],
             'token' => $token
         ], 'Inscription reussie');
@@ -139,10 +182,10 @@ class AuthController {
             Response::error('Email ou mot de passe incorrect', 401);
         }
         
-        // Verifier le statut
-        if (isset($user['status']) && $user['status'] !== 'active') {
-            Logger::warning('Login failed - account inactive', ['email' => $email, 'status' => $user['status']]);
-            Response::error('Votre compte est desactive', 403);
+        // Verifier le statut: bloquer uniquement les comptes inactifs/suspendus/supprimes
+        if (isset($user['status']) && in_array($user['status'], ['inactive', 'suspended', 'deleted'])) {
+            Logger::warning('Login failed - account not allowed', ['email' => $email, 'status' => $user['status']]);
+            Response::error('Votre compte ne peut pas se connecter', 403);
         }
         
         // Verifier le mot de passe

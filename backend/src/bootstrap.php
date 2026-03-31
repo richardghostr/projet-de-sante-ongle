@@ -423,12 +423,20 @@ class Auth {
         $payload = JWT::decode($token);
         if (!$payload || !isset($payload['user_id'])) return null;
         
-        // Verifier l'utilisateur en base
+
+        // Recuperer l'utilisateur en base sans filtrer sur status (we'll apply allowed-status logic)
         $user = db()->fetchOne(
-            'SELECT id, nom, prenom, email, role, status FROM users WHERE id = ? AND status = ?',
-            [$payload['user_id'], 'active']
+            'SELECT id, nom, prenom, email, role, status FROM users WHERE id = ?',
+            [$payload['user_id']]
         );
-        
+
+        if ($user) {
+            // Block only deleted / suspended / inactive accounts
+            if (isset($user['status']) && in_array($user['status'], ['deleted', 'suspended', 'inactive'])) {
+                $user = null;
+            }
+        }
+
         if (!$user) {
             // Fallback fichier
             $user = self::getUserFromFile($payload['user_id']);
@@ -467,7 +475,8 @@ class Auth {
         if (!file_exists($usersFile)) return null;
         $users = json_decode(file_get_contents($usersFile), true) ?: [];
         foreach ($users as $u) {
-            if ($u['id'] == $userId && ($u['status'] ?? 'active') === 'active') {
+            $s = $u['status'] ?? 'active';
+            if ($u['id'] == $userId && in_array($s, ['active', 'pending', 'approved'])) {
                 return $u;
             }
         }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Navbar } from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -101,6 +101,8 @@ const AdminDashboard = () => {
     }
   };
 
+  const navigate = useNavigate();
+
   const handleRoleChange = async (userId: number, newRole: string) => {
     try {
       await api.updateUserRole(userId, newRole as any);
@@ -134,7 +136,9 @@ const AdminDashboard = () => {
       active: 'bg-emerald-100 text-emerald-700',
       inactive: 'bg-slate-100 text-slate-700',
       suspended: 'bg-red-100 text-red-700',
-      pending_verification: 'bg-amber-100 text-amber-700'
+      pending_verification: 'bg-amber-100 text-amber-700',
+      pending: 'bg-amber-100 text-amber-700',
+      approved: 'bg-emerald-100 text-emerald-700'
     };
     return m[status] || 'bg-muted text-muted-foreground';
   };
@@ -155,7 +159,14 @@ const AdminDashboard = () => {
             <Shield className="h-4 w-4" />
             <span>Administration</span>
           </div>
-          <h1 className="text-3xl font-bold">Tableau de bord Admin</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold">Tableau de bord Admin</h1>
+            <div>
+              <Button asChild>
+                <Link to="/admin/documents">Valider les documents</Link>
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Stats */}
@@ -232,7 +243,8 @@ const AdminDashboard = () => {
                         <SelectItem value="active">Actif</SelectItem>
                         <SelectItem value="inactive">Inactif</SelectItem>
                         <SelectItem value="suspended">Suspendu</SelectItem>
-                        <SelectItem value="pending_verification">En attente</SelectItem>
+                        <SelectItem value="pending">En attente</SelectItem>
+                        <SelectItem value="approved">Approuvé</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -291,6 +303,34 @@ const AdminDashboard = () => {
                               <DropdownMenuItem onClick={() => handleStatusChange(user.id, 'suspended')}>
                                 <AlertTriangle className="h-4 w-4 mr-2 text-red-500" /> Suspendre
                               </DropdownMenuItem>
+                              {user.role === 'professional' && (
+                                <>
+                                  <DropdownMenuItem onClick={() => navigate(`/admin/validate-professionals?userId=${user.id}`)}>
+                                    <Activity className="h-4 w-4 mr-2 text-primary" /> Voir / Valider
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={async () => {
+                                    try {
+                                      await api.verifyProfessional(user.id, true);
+                                      loadUsers();
+                                      alert('Professionnel approuve');
+                                    } catch (e:any) {
+                                      if (e?.status === 409 && e?.data?.redirect) {
+                                        // Ask admin to go validate documents
+                                        if (confirm(e.message + '\n\nVoulez-vous aller valider les documents maintenant ?')) {
+                                          navigate(e.data.redirect);
+                                        }
+                                      } else {
+                                        alert(e.message || e);
+                                      }
+                                    }
+                                  }}>
+                                    <CheckCircle className="h-4 w-4 mr-2 text-emerald-500" /> Approuver
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={async () => { try { await api.verifyProfessional(user.id, false); loadUsers(); alert('Professionnel remis en attente'); } catch (e:any) { alert(e.message || e); } }}>
+                                    <AlertTriangle className="h-4 w-4 mr-2 text-red-500" /> Refuser
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>

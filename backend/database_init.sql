@@ -30,7 +30,7 @@ CREATE TABLE `users` (
   `email_verified_at` TIMESTAMP NULL,
   `last_login` TIMESTAMP NULL,
   `login_count` INT UNSIGNED DEFAULT 0,
-  `status` ENUM('active', 'inactive', 'suspended', 'deleted', 'pending_verification') DEFAULT 'active',
+  `status` ENUM('active', 'inactive', 'suspended', 'deleted', 'pending', 'approved', 'pending_verification') DEFAULT 'active',
   `preferences` JSON DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
@@ -38,6 +38,76 @@ CREATE TABLE `users` (
   INDEX `idx_role` (`role`),
   INDEX `idx_status` (`status`),
   INDEX `idx_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- Table: patient_profiles (Profils patients)
+-- ============================================
+DROP TABLE IF EXISTS `patient_profiles`;
+CREATE TABLE `patient_profiles` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED NOT NULL UNIQUE,
+  `date_naissance` DATE DEFAULT NULL,
+  `sexe` ENUM('homme','femme','autre') DEFAULT NULL,
+  `groupe_sanguin` VARCHAR(10) DEFAULT NULL,
+  `allergies` TEXT DEFAULT NULL,
+  `antecedents_medicaux` TEXT DEFAULT NULL,
+  `traitement_en_cours` TEXT DEFAULT NULL,
+  `contact_urgence` VARCHAR(255) DEFAULT NULL,
+  `telephone` VARCHAR(20) DEFAULT NULL,
+  `adresse` VARCHAR(512) DEFAULT NULL,
+  `ville` VARCHAR(255) DEFAULT NULL,
+  `pays` VARCHAR(255) DEFAULT NULL,
+  `photo_profil` VARCHAR(512) DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_patient_user` (`user_id`),
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- Table: professional_profiles (Profils professionnels)
+-- ============================================
+DROP TABLE IF EXISTS `professional_profiles`;
+CREATE TABLE `professional_profiles` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` BIGINT UNSIGNED NOT NULL UNIQUE,
+  `specialite` VARCHAR(255) DEFAULT NULL,
+  `sous_specialite` VARCHAR(255) DEFAULT NULL,
+  `matricule_professionnel` VARCHAR(255) DEFAULT NULL,
+  `numero_ordre` VARCHAR(100) DEFAULT NULL,
+  `etablissement` VARCHAR(255) DEFAULT NULL,
+  `experience` TEXT DEFAULT NULL,
+  `biographie` TEXT DEFAULT NULL,
+  `telephone_professionnel` VARCHAR(20) DEFAULT NULL,
+  `adresse_professionnelle` VARCHAR(512) DEFAULT NULL,
+  `ville` VARCHAR(255) DEFAULT NULL,
+  `pays` VARCHAR(255) DEFAULT NULL,
+  `photo_profil` VARCHAR(512) DEFAULT NULL,
+  `statut_validation` ENUM('pending','approved','rejected') DEFAULT 'pending',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_professional_user` (`user_id`),
+  INDEX `idx_statut_validation` (`statut_validation`),
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- Table: professional_documents (Documents justificatifs pro)
+-- ============================================
+DROP TABLE IF EXISTS `professional_documents`;
+CREATE TABLE `professional_documents` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `uuid` VARCHAR(64) DEFAULT NULL,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `filename` VARCHAR(255) NOT NULL,
+  `url` VARCHAR(512) NOT NULL,
+  `type` VARCHAR(100) DEFAULT NULL,
+  `verified` TINYINT(1) DEFAULT 0,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NULL DEFAULT NULL,
+  INDEX `idx_user` (`user_id`),
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================

@@ -165,6 +165,16 @@ try {
         require_once __DIR__ . '/controllers/ProfileController.php';
         ProfileController::verifyDocument($matches[1]);
     }
+    elseif (preg_match('#^/profile/documents/(\d+)$#', $uri, $matches) && $method === 'DELETE') {
+        require_once __DIR__ . '/controllers/ProfileController.php';
+        ProfileController::deleteDocument($matches[1]);
+    }
+
+    // Admin: lister tous les documents en attente
+    elseif ($uri === '/admin/documents' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/ProfileController.php';
+        ProfileController::adminListDocuments();
+    }
     
     // ============================================
     // Routes utilitaires
@@ -275,6 +285,12 @@ try {
     elseif (preg_match('#^/admin/users/(\d+)/verify$#', $uri, $matches) && $method === 'POST') {
         require_once __DIR__ . '/controllers/AdminController.php';
         AdminController::verifyProfessional($matches[1]);
+    }
+
+    // Admin: list professionals pending validation
+    elseif ($uri === '/admin/professionals/pending' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/AdminController.php';
+        AdminController::listProfessionalsPendingValidation();
     }
     
     elseif ($uri === '/admin/analyses' && $method === 'GET') {

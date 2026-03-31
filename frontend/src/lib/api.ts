@@ -38,6 +38,7 @@ class ApiClient {
       const err: any = new Error(msg);
       err.status = response.status;
       err.details = data?.errors;
+      err.data = data;
       throw err;
     }
     return data;
@@ -69,6 +70,21 @@ class ApiClient {
   updateProfile(data: any) { return this.request('/profile', { method: 'PUT', body: JSON.stringify(data) }); }
   changePassword(data: { current_password: string; new_password: string; new_password_confirmation: string }) {
     return this.request('/change-password', { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  // Profile documents
+  listProfileDocuments() { return this.request('/profile/documents', { method: 'GET' }); }
+  uploadProfileDocument(formData: FormData) { return this.request('/profile/documents', { method: 'POST', body: formData }); }
+  deleteProfileDocument(id: number) { return this.request(`/profile/documents/${id}`, { method: 'DELETE' }); }
+  verifyProfileDocument(id: number) { return this.request(`/profile/documents/${id}/verify`, { method: 'PUT' }); }
+  validateProfileDocument(id: number, action: 'approve' | 'reject', comment?: string) { return this.request(`/profile/documents/${id}/verify`, { method: 'PUT', body: JSON.stringify({ action, comment }) }); }
+
+  // Admin: get professionals pending validation
+  getProfessionalsPending() { return this.request('/admin/professionals/pending', { method: 'GET' }); }
+  listAllProfileDocuments() { return this.request('/admin/documents', { method: 'GET' }); }
+  getAdminDocuments(userId?: number) {
+    const q = userId ? `?user_id=${userId}` : '';
+    return this.request(`/admin/documents${q}`, { method: 'GET' });
   }
   deleteAccount() { return this.request('/profile', { method: 'DELETE' }); }
 

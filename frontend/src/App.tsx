@@ -21,6 +21,8 @@ import NotFound from "./pages/NotFound";
 // Admin and Professional pages
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminAnalysisDetail from "./pages/AdminAnalysisDetail";
+import AdminDocuments from "./pages/AdminDocuments";
+import AdminValidationProfessionals from './pages/AdminValidationProfessionals';
 import ProfessionalDashboard from "./pages/ProfessionalDashboard";
 import PatientAnalysisDetail from './pages/PatientAnalysisDetail';
 import PatientTreatmentView from './pages/PatientTreatmentView';
@@ -84,6 +86,26 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+                <Route
+                  path="/admin/documents"
+                  element={
+                    <ProtectedRoute>
+                      <RoleGuard allowedRoles={["admin"]}>
+                        <AdminDocuments />
+                      </RoleGuard>
+                    </ProtectedRoute>
+                  }
+                />
+                  <Route
+                    path="/admin/validate-professionals"
+                    element={
+                      <ProtectedRoute>
+                        <RoleGuard allowedRoles={["admin"]}>
+                          <AdminValidationProfessionals />
+                        </RoleGuard>
+                      </ProtectedRoute>
+                    }
+                  />
             
             {/* Professional routes - professional and admin */}
             <Route 

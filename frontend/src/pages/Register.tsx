@@ -62,6 +62,16 @@ const Register = () => {
                 </div>
               </div>
               <div className="space-y-2">
+                <Label>Vous êtes</Label>
+                <select value={form.role || 'user'} onChange={(e) => setForm(prev => ({ ...prev, role: e.target.value }))} className="w-full p-2 border rounded">
+                  <option value="user">Patient</option>
+                  <option value="professional">Professionnel de santé</option>
+                </select>
+                {form.role === 'professional' && (
+                  <div className="text-sm text-muted-foreground mt-1">Un administrateur devra valider votre compte avant d'accéder au profil professionnel complet.</div>
+                )}
+              </div>
+              <div className="space-y-2">
                 <Label>Email *</Label>
                 <Input type="email" placeholder="votre@email.com" value={form.email} onChange={update('email')} required />
               </div>

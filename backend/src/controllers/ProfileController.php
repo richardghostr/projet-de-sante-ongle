@@ -18,7 +18,7 @@ class ProfileController {
         if ($pdo) {
             $profile = db()->fetchOne(
                 'SELECT id, nom, prenom, email, telephone, date_naissance, sexe, 
-                        avatar_url, role, consent_data, consent_date, preferences,
+                        avatar_url, role, status, consent_data, consent_date, preferences,
                         created_at, updated_at, last_login, login_count
                  FROM users WHERE id = ?',
                 [$user['id']]
@@ -32,6 +32,55 @@ class ProfileController {
         if (!$profile) {
             Response::notFound('Profil non trouve');
         }
+
+        // Enrich with patient_profiles and professional_profiles when available
+        if ($pdo) {
+            // patient profile
+            $patient = db()->fetchOne('SELECT * FROM patient_profiles WHERE user_id = ?', [$user['id']]);
+            if ($patient) {
+                // merge some commonly used fields into top-level for backward compatibility
+                $mergeFields = ['date_naissance','sexe','groupe_sanguin','allergies','antecedents_medicaux','traitement_en_cours','contact_urgence','telephone','adresse','ville','pays','photo_profil'];
+                foreach ($mergeFields as $f) {
+                    if (isset($patient[$f])) $profile[$f] = $patient[$f];
+                }
+                $profile['patient'] = $patient;
+            }
+
+            // professional profile
+            $professional = db()->fetchOne('SELECT * FROM professional_profiles WHERE user_id = ?', [$user['id']]);
+            if ($professional) {
+                $profile['professional'] = $professional;
+            }
+        } else {
+            // fallback: read from storage files if present
+            $ppfile = __DIR__ . '/../../storage/data/patient_profile_' . $user['id'] . '.json';
+            if (file_exists($ppfile)) {
+                $patient = json_decode(file_get_contents($ppfile), true) ?: null;
+                if ($patient) {
+                    foreach (['date_naissance','sexe','groupe_sanguin','allergies','antecedents_medicaux','traitement_en_cours','contact_urgence','telephone','adresse','ville','pays','photo_profil'] as $f) {
+                        if (isset($patient[$f])) $profile[$f] = $patient[$f];
+                    }
+                    $profile['patient'] = $patient;
+                }
+            }
+            $prfile = __DIR__ . '/../../storage/data/professional_profile_' . $user['id'] . '.json';
+            if (file_exists($prfile)) {
+                $professional = json_decode(file_get_contents($prfile), true) ?: null;
+                if ($professional) $profile['professional'] = $professional;
+            }
+        }
+
+        // Compute a canonical boolean for whether the professional account is validated.
+        // This helps clients avoid discrepancies by relying on a single server-side source of truth.
+        $isValidated = false;
+        // check users.status and professional_profiles.statut_validation when available
+        if (isset($profile['status']) && in_array(strtolower($profile['status']), ['approved', 'active', 'validated', 'valide', 'validé'])) {
+            $isValidated = true;
+        }
+        if (isset($profile['professional']) && isset($profile['professional']['statut_validation']) && in_array(strtolower($profile['professional']['statut_validation']), ['approved', 'active', 'validated', 'valide', 'validé'])) {
+            $isValidated = true;
+        }
+        $profile['is_professional_validated'] = $isValidated;
         
         // Ne pas envoyer le hash du mot de passe
         unset($profile['password_hash']);
@@ -57,13 +106,43 @@ class ProfileController {
         $user = Auth::requireAuth();
         $data = getRequestBody();
         
-        // Champs modifiables
-        $allowedFields = ['nom', 'prenom', 'telephone', 'date_naissance', 'sexe', 'preferences'];
+        // Fetch current status to enforce professional validation workflow
+        $pdo = get_db();
+        $currentStatus = null;
+        if ($pdo) {
+            $row = db()->fetchOne('SELECT status FROM users WHERE id = ?', [$user['id']]);
+            $currentStatus = $row['status'] ?? null;
+        } else {
+            $uf = self::getUserFromFileById($user['id']);
+            $currentStatus = $uf['status'] ?? null;
+        }
+        
+        // Champs modifiables (ajout de champs cliniques pour patient et professionnel)
+        $allowedFields = [
+            'nom', 'prenom', 'telephone', 'date_naissance', 'sexe', 'preferences', 'nationalite',
+            // patient medical
+            'groupe_sanguin', 'allergies', 'antecedents', 'traitement_en_cours', 'contact_urgence', 'telephone_urgence', 'profession', 'adresse', 'ville', 'pays',
+            // professional
+            'specialite', 'sous_specialite', 'matricule', 'numero_ordre', 'etablissement', 'annees_experience', 'grade', 'disponibilites_text', 'statut', 'email_pro', 'telephone_pro', 'adresse_pro'
+        ];
+        
+        // If user is a professional and not yet approved, block modification of professional fields
+        if (($user['role'] ?? '') === 'professional' && $currentStatus !== 'approved') {
+            $professionalFields = ['specialite', 'sous_specialite', 'matricule', 'numero_ordre', 'etablissement', 'annees_experience', 'grade', 'disponibilites_text', 'statut', 'email_pro', 'telephone_pro', 'adresse_pro'];
+            foreach ($professionalFields as $f) {
+                if (isset($data[$f])) {
+                    Response::forbidden('Votre compte professionnel doit etre valide par un administrateur avant de completer le profil');
+                }
+            }
+        }
         $updateData = [];
         
         foreach ($allowedFields as $field) {
             if (isset($data[$field])) {
                 if ($field === 'preferences') {
+                    $updateData[$field] = json_encode($data[$field]);
+                } elseif ($field === 'allergies' && is_array($data[$field])) {
+                    // Store allergies as JSON array when provided as an array
                     $updateData[$field] = json_encode($data[$field]);
                 } elseif ($field === 'sexe') {
                     if (in_array($data[$field], ['homme', 'femme', 'autre', null])) {
@@ -75,7 +154,12 @@ class ProfileController {
                         $updateData[$field] = $data[$field];
                     }
                 } else {
-                    $updateData[$field] = trim($data[$field]);
+                    // If value is array, encode as JSON instead of trimming
+                    if (is_array($data[$field])) {
+                        $updateData[$field] = json_encode($data[$field]);
+                    } else {
+                        $updateData[$field] = trim($data[$field]);
+                    }
                 }
             }
         }
@@ -95,17 +179,98 @@ class ProfileController {
             Response::error('Le telephone ne doit pas depasser 20 caracteres', 422);
         }
         
-        $updateData['updated_at'] = date('Y-m-d H:i:s');
+        $updateTime = date('Y-m-d H:i:s');
         
+        // Split update data between users, patient_profiles and professional_profiles
+        $userFields = ['nom','prenom','telephone','date_naissance','sexe','preferences','nationalite','avatar_url','email'];
+        $patientFields = ['groupe_sanguin','allergies','antecedents','traitement_en_cours','contact_urgence','telephone_urgence','adresse','ville','pays'];
+        $professionalFields = ['specialite','sous_specialite','matricule','numero_ordre','etablissement','annees_experience','grade','disponibilites_text','statut','email_pro','telephone_pro','adresse_pro','biographie','photo_profil'];
+
+        $userUpdate = [];
+        $patientUpdate = [];
+        $professionalUpdate = [];
+        foreach ($updateData as $k => $v) {
+            if (in_array($k, $userFields)) $userUpdate[$k] = $v;
+            if (in_array($k, $patientFields)) $patientUpdate[$k] = $v;
+            if (in_array($k, $professionalFields)) $professionalUpdate[$k] = $v;
+        }
+
         $pdo = get_db();
         if ($pdo) {
-            $result = db()->update('users', $updateData, 'id = ?', [$user['id']]);
-            if (!$result) {
-                Response::serverError('Erreur lors de la mise a jour');
+            if (!empty($userUpdate)) {
+                $userUpdate['updated_at'] = $updateTime;
+                $res = db()->update('users', $userUpdate, 'id = ?', [$user['id']]);
+                if (!$res) Response::serverError('Erreur lors de la mise a jour du compte');
+            }
+
+            // patient profile
+            if (!empty($patientUpdate)) {
+                // map frontend field names to DB columns
+                if (isset($patientUpdate['antecedents'])) {
+                    $patientUpdate['antecedents_medicaux'] = $patientUpdate['antecedents'];
+                    unset($patientUpdate['antecedents']);
+                }
+                $patientUpdate['updated_at'] = $updateTime;
+                $exists = db()->fetchOne('SELECT id FROM patient_profiles WHERE user_id = ?', [$user['id']]);
+                if ($exists) {
+                    db()->update('patient_profiles', $patientUpdate, 'user_id = ?', [$user['id']]);
+                } else {
+                    $patientUpdate['user_id'] = $user['id'];
+                    $patientUpdate['created_at'] = $updateTime;
+                    db()->insert('patient_profiles', $patientUpdate);
+                }
+            }
+
+            // professional profile
+            if (!empty($professionalUpdate)) {
+                // map frontend field names to DB columns
+                if (isset($professionalUpdate['annees_experience'])) {
+                    $professionalUpdate['experience'] = $professionalUpdate['annees_experience'];
+                    unset($professionalUpdate['annees_experience']);
+                }
+                if (isset($professionalUpdate['matricule'])) {
+                    $professionalUpdate['matricule_professionnel'] = $professionalUpdate['matricule'];
+                    unset($professionalUpdate['matricule']);
+                }
+                if (isset($professionalUpdate['telephone_pro'])) {
+                    $professionalUpdate['telephone_professionnel'] = $professionalUpdate['telephone_pro'];
+                    unset($professionalUpdate['telephone_pro']);
+                }
+                if (isset($professionalUpdate['adresse_pro'])) {
+                    $professionalUpdate['adresse_professionnelle'] = $professionalUpdate['adresse_pro'];
+                    unset($professionalUpdate['adresse_pro']);
+                }
+                // statut from profile editing should not overwrite validation status
+                if (isset($professionalUpdate['statut'])) {
+                    unset($professionalUpdate['statut']);
+                }
+                $professionalUpdate['updated_at'] = $updateTime;
+                $exists = db()->fetchOne('SELECT id FROM professional_profiles WHERE user_id = ?', [$user['id']]);
+                if ($exists) {
+                    db()->update('professional_profiles', $professionalUpdate, 'user_id = ?', [$user['id']]);
+                } else {
+                    $professionalUpdate['user_id'] = $user['id'];
+                    $professionalUpdate['created_at'] = $updateTime;
+                    db()->insert('professional_profiles', $professionalUpdate);
+                }
             }
         } else {
-            // Fallback fichier
-            self::updateUserInFile($user['id'], $updateData);
+            // Fallback file updates
+            if (!empty($userUpdate)) {
+                self::updateUserInFile($user['id'], $userUpdate);
+            }
+            if (!empty($patientUpdate)) {
+                $pf = __DIR__ . '/../../storage/data/patient_profile_' . $user['id'] . '.json';
+                $existing = file_exists($pf) ? (json_decode(file_get_contents($pf), true) ?: []) : [];
+                $merged = array_merge($existing, $patientUpdate, ['user_id' => $user['id']]);
+                file_put_contents($pf, json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            }
+            if (!empty($professionalUpdate)) {
+                $pf = __DIR__ . '/../../storage/data/professional_profile_' . $user['id'] . '.json';
+                $existing = file_exists($pf) ? (json_decode(file_get_contents($pf), true) ?: []) : [];
+                $merged = array_merge($existing, $professionalUpdate, ['user_id' => $user['id']]);
+                file_put_contents($pf, json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            }
         }
         
         Logger::info('Profile updated', ['user_id' => $user['id'], 'fields' => array_keys($updateData)]);
@@ -385,6 +550,10 @@ class ProfileController {
 
         $url = '/storage/documents/' . $user['id'] . '/' . $filename;
 
+        // document type (e.g. diplome, carte_professionnelle) can be provided by client
+        $data = getRequestBody();
+        $docType = $data['type_document'] ?? ($_POST['type_document'] ?? null);
+
         $pdo = get_db();
         if ($pdo) {
             $id = db()->insert('professional_documents', [
@@ -393,17 +562,21 @@ class ProfileController {
                 'filename' => $file['name'],
                 'url' => $url,
                 'type' => $mimeType,
+                'type_document' => $docType,
+                'statut_validation' => 'pending',
+                'commentaire_admin' => null,
+                'date_validation' => null,
                 'verified' => 0,
                 'created_at' => date('Y-m-d H:i:s')
             ]);
             if (!$id) Response::serverError('Erreur lors de l\'enregistrement du document');
-            $doc = db()->fetchOne('SELECT id, uuid, filename, url, type, verified, created_at FROM professional_documents WHERE id = ?', [$id]);
+            $doc = db()->fetchOne('SELECT id, uuid, filename, url, type, type_document, statut_validation, commentaire_admin, date_validation, created_at FROM professional_documents WHERE id = ?', [$id]);
             Response::created(['document' => $doc], 'Document enregistre');
         } else {
             // fallback file
             $docsFile = __DIR__ . '/../../storage/data/documents_' . $user['id'] . '.json';
             $docs = file_exists($docsFile) ? (json_decode(file_get_contents($docsFile), true) ?: []) : [];
-            $docs[] = ['id' => count($docs) + 1, 'uuid' => $uuid, 'filename' => $file['name'], 'url' => $url, 'type' => $mimeType, 'verified' => 0, 'created_at' => date('c')];
+            $docs[] = ['id' => count($docs) + 1, 'uuid' => $uuid, 'filename' => $file['name'], 'url' => $url, 'type' => $mimeType, 'type_document' => $docType, 'statut_validation' => 'pending', 'verified' => 0, 'created_at' => date('c')];
             file_put_contents($docsFile, json_encode($docs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             Response::created(['document' => end($docs)], 'Document enregistre (fallback)');
         }
@@ -413,20 +586,185 @@ class ProfileController {
      * PUT /api/profile/documents/:id/verify - verifier un document (admin)
      */
     public static function verifyDocument($id) {
+        $admin = Auth::requireAuth();
+        if (!isset($admin['role']) || $admin['role'] !== 'admin') {
+            Response::forbidden('Acces refuse');
+        }
+
+        $data = getRequestBody();
+        $action = $data['action'] ?? ($data['approved'] ?? null);
+        // Normalize: allow {approved: true} or {action: 'approve'|'reject'}
+        $approve = null;
+        if ($action === 'approve' || $action === true || $action === 'approved') $approve = true;
+        if ($action === 'reject' || $action === false || $action === 'rejected') $approve = false;
+        $comment = $data['comment'] ?? null;
+
+        $pdo = get_db();
+        if (!$pdo) {
+            Response::error('Operation non supportee en mode fichier', 400);
+        }
+
+        $doc = db()->fetchOne('SELECT * FROM professional_documents WHERE id = ?', [$id]);
+        if (!$doc) Response::notFound('Document non trouve');
+
+        if ($approve === null) {
+            Response::error('Action invalide (approve/reject attendu)', 400);
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $newStatus = $approve ? 'approved' : 'rejected';
+        // Update document status and legacy `verified` flag
+        $docUpdate = db()->update('professional_documents', [
+            'statut_validation' => $newStatus,
+            'commentaire_admin' => $comment,
+            'date_validation' => $now,
+            'verified' => $approve ? 1 : 0,
+            'updated_at' => $now
+        ], 'id = ?', [$id]);
+        if (!$docUpdate) {
+            Logger::error('Failed to update professional_documents', ['document_id' => $id]);
+            Response::serverError('Impossible de mettre a jour le document');
+        }
+
+        // After updating the document, determine whether the professional should be validated.
+        $userId = $doc['user_id'];
+        if ($approve) {
+            // Check if all documents for this user are approved
+            $otherDocs = db()->fetchAll('SELECT id, statut_validation FROM professional_documents WHERE user_id = ?', [$userId]);
+            $allApproved = true;
+            foreach ($otherDocs as $od) {
+                if (($od['statut_validation'] ?? '') !== 'approved') {
+                    $allApproved = false;
+                    break;
+                }
+            }
+
+            if ($allApproved) {
+                // Some DB schemas may not include 'approved' in users.status enum.
+                // Use 'active' for users.status while keeping professional_profiles.statut_validation = 'approved'.
+                $uRes = db()->update('users', ['status' => 'active', 'updated_at' => $now], 'id = ?', [$userId]);
+                if (!$uRes) {
+                    Logger::error('Failed to update users.status on document approval', ['user_id' => $userId, 'document_id' => $id]);
+                }
+                $pp = db()->fetchOne('SELECT id FROM professional_profiles WHERE user_id = ?', [$userId]);
+                if ($pp) {
+                    $ppRes = db()->update('professional_profiles', ['statut_validation' => 'approved', 'updated_at' => $now], 'user_id = ?', [$userId]);
+                    if (!$ppRes) Logger::error('Failed to update professional_profiles', ['user_id' => $userId]);
+                } else {
+                    $ppRes = db()->insert('professional_profiles', ['user_id' => $userId, 'statut_validation' => 'approved', 'created_at' => $now]);
+                    if (!$ppRes) Logger::error('Failed to insert professional_profiles', ['user_id' => $userId]);
+                }
+                $userFullyValidated = true;
+                // Notify the professional that their account is now validated
+                db()->insert('notifications', [
+                    'user_id' => $userId,
+                    'type' => 'success',
+                    'titre' => 'Compte professionnel valide',
+                    'message' => 'Votre compte professionnel a ete valide par un administrateur. Vous pouvez desormais acceder a toutes les fonctionnalites professionnelles.',
+                    'link' => '/professional/profile'
+                ]);
+            } else {
+                // Not all documents approved yet — keep user status as pending (do not promote)
+                $userFullyValidated = false;
+            }
+        } else {
+            // rejection: set user to restricted and professional profile to rejected
+            // Use a valid enum value for users.status. 'restricted' is not in the enum, use 'suspended'.
+            $uRes = db()->update('users', ['status' => 'suspended', 'updated_at' => $now], 'id = ?', [$userId]);
+            if (!$uRes) Logger::error('Failed to update users.status on document rejection', ['user_id' => $userId]);
+            $pp = db()->fetchOne('SELECT id FROM professional_profiles WHERE user_id = ?', [$userId]);
+            if ($pp) {
+                $ppRes = db()->update('professional_profiles', ['statut_validation' => 'rejected', 'updated_at' => $now], 'user_id = ?', [$userId]);
+                if (!$ppRes) Logger::error('Failed to update professional_profiles', ['user_id' => $userId]);
+            } else {
+                $ppRes = db()->insert('professional_profiles', ['user_id' => $userId, 'statut_validation' => 'rejected', 'created_at' => $now]);
+                if (!$ppRes) Logger::error('Failed to insert professional_profiles', ['user_id' => $userId]);
+            }
+            $userFullyValidated = false;
+        }
+
+        Logger::info('Document validation', ['admin_id' => $admin['id'], 'document_id' => $id, 'action' => $newStatus, 'user_id' => $userId]);
+
+        // Return the updated document and whether the user is now fully validated
+        $updated = db()->fetchOne('SELECT id, uuid, user_id, filename, url, type, type_document, statut_validation, commentaire_admin, date_validation, verified, created_at FROM professional_documents WHERE id = ?', [$id]);
+        $payload = ['document' => $updated, 'user_fully_validated' => !empty($userFullyValidated)];
+        $msg = $approve ? ($userFullyValidated ? 'Document approuve et professionnel valide' : 'Document approuve (d autres documents en attente)') : 'Document refuse';
+        Response::success($payload, $msg);
+    }
+
+    /**
+     * DELETE /api/profile/documents/:id - delete a document (owner or admin)
+     */
+    public static function deleteDocument($id) {
+        $user = Auth::requireAuth();
+        $pdo = get_db();
+        if (!$pdo) Response::error('Operation non supportee en mode fichier', 400);
+
+        $doc = db()->fetchOne('SELECT * FROM professional_documents WHERE id = ?', [$id]);
+        if (!$doc) Response::notFound('Document non trouve');
+
+        // Only owner or admin can delete; owners only if pending
+        if ($user['id'] != $doc['user_id'] && ($user['role'] ?? '') !== 'admin') {
+            Response::forbidden('Acces refuse');
+        }
+
+        if (($user['role'] ?? '') !== 'admin') {
+            if (isset($doc['statut_validation']) && $doc['statut_validation'] !== 'pending') {
+                Response::forbidden('Impossible de supprimer un document deja valide ou refuse');
+            }
+        }
+
+        // remove file from storage if exists
+        $path = __DIR__ . '/../../storage' . ($doc['url'] ?? '');
+        if ($path && file_exists($path)) {
+            @unlink($path);
+        }
+
+        db()->delete('professional_documents', 'id = ?', [$id]);
+        Response::success(['id' => $id], 'Document supprime');
+    }
+
+    /**
+     * GET /api/admin/documents - admin listing of all documents
+     */
+    public static function adminListDocuments() {
         $user = Auth::requireAuth();
         if (!isset($user['role']) || $user['role'] !== 'admin') {
             Response::forbidden('Acces refuse');
         }
 
         $pdo = get_db();
+        $docs = [];
         if ($pdo) {
-            $doc = db()->fetchOne('SELECT * FROM professional_documents WHERE id = ?', [$id]);
-            if (!$doc) Response::notFound('Document non trouve');
-            db()->update('professional_documents', ['verified' => 1, 'updated_at' => date('Y-m-d H:i:s')], 'id = ?', [$id]);
-            Response::success(['id' => $id], 'Document verifie');
+            $userId = isset($_GET['user_id']) ? (int)$_GET['user_id'] : null;
+            if ($userId) {
+                $docs = db()->fetchAll(
+                    'SELECT pd.id, pd.uuid, pd.user_id, pd.filename, pd.url, pd.type, pd.type_document, pd.statut_validation, pd.commentaire_admin, pd.date_validation, pd.created_at, u.nom, u.prenom, u.email
+                     FROM professional_documents pd
+                     LEFT JOIN users u ON pd.user_id = u.id
+                     WHERE pd.user_id = ?
+                     ORDER BY pd.created_at DESC',
+                    [$userId]
+                );
+            } else {
+                $docs = db()->fetchAll(
+                    'SELECT pd.id, pd.uuid, pd.user_id, pd.filename, pd.url, pd.type, pd.verified, pd.created_at, u.nom, u.prenom, u.email
+                     FROM professional_documents pd
+                     LEFT JOIN users u ON pd.user_id = u.id
+                     ORDER BY pd.created_at DESC'
+                );
+            }
         } else {
-            Response::error('Operation non supportee en mode fichier', 400);
+            // fallback: scan storage/data for documents_*.json
+            $docs = [];
+            $dir = __DIR__ . '/../../storage/data';
+            foreach (glob($dir . '/documents_*.json') as $f) {
+                $arr = json_decode(file_get_contents($f), true) ?: [];
+                foreach ($arr as $d) $docs[] = $d;
+            }
         }
+
+        Response::success(['documents' => $docs]);
     }
     
     /**
