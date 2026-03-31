@@ -24,6 +24,7 @@ import AdminAnalysisDetail from "./pages/AdminAnalysisDetail";
 import AdminDocuments from "./pages/AdminDocuments";
 import AdminValidationProfessionals from './pages/AdminValidationProfessionals';
 import ProfessionalDashboard from "./pages/ProfessionalDashboard";
+import ProfessionalFollowRequests from './pages/ProfessionalFollowRequests';
 import PatientAnalysisDetail from './pages/PatientAnalysisDetail';
 import PatientTreatmentView from './pages/PatientTreatmentView';
 import ProfessionalProfile from './pages/ProfessionalProfile';
@@ -120,6 +121,7 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route path="/professional/follow-requests" element={<ProtectedRoute><RoleGuard allowedRoles={["professional","admin"]}><ProfessionalFollowRequests /></RoleGuard></ProtectedRoute>} />
             <Route path="/patients/:patientId/history/:id" element={
               <ProtectedRoute>
                 <RoleGuard allowedRoles={["professional","admin","user"]}>

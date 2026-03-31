@@ -274,13 +274,29 @@ const ProfessionalDashboard = () => {
           {/* Side panel */}
           <div className="space-y-6">
             {/* Pending requests */}
-            {requests.length > 0 && (
-              <Card className="shadow-sm border-amber-200">
+              <Card className="shadow-sm">
+                <CardContent className="flex items-center justify-between p-3">
+                  <div>
+                    <p className="text-sm font-medium">Demandes de suivi</p>
+                    <p className="text-xs text-muted-foreground">Consultez et gérez les demandes envoyées par vos patients</p>
+                  </div>
+                  <div>
+                    <Link to="/professional/follow-requests">
+                      <Button variant="ghost" size="sm">Voir toutes</Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {requests.length > 0 && (
+                <Card className="shadow-sm border-amber-200">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-amber-500" />
-                    Demandes en attente
-                  </CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-amber-500" />
+                        Demandes en attente
+                      </CardTitle>
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {requests.map((req) => (
