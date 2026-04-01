@@ -32,8 +32,11 @@ export const RoleGuard = ({
 
   if (isLoading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex min-h-dvh items-center justify-center bg-muted/30">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Chargement...</p>
+        </div>
       </div>
     );
   }
@@ -52,10 +55,10 @@ export const RoleGuard = ({
     }
 
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 p-6 bg-muted/30">
-        <ShieldX className="h-14 w-14 md:h-16 md:w-16 text-destructive" />
-        <h1 className="text-xl font-bold md:text-2xl text-center">Accès refusé</h1>
-        <p className="text-center text-sm text-muted-foreground max-w-xs">
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-muted/30 p-6">
+        <ShieldX className="h-14 w-14 text-destructive md:h-16 md:w-16" />
+        <h1 className="text-center text-xl font-bold md:text-2xl">Accès refusé</h1>
+        <p className="max-w-xs text-center text-sm text-muted-foreground">
           Vous n&apos;avez pas les permissions nécessaires pour accéder à cette page.
         </p>
         <Button asChild className="h-12 w-full max-w-xs rounded-xl text-base">
