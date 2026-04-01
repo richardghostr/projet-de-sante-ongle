@@ -2,18 +2,18 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Navbar } from '@/components/Navbar';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PageHeader } from '@/components/PageHeader';
 import { 
-  Plus, Calendar, Activity, Camera, TrendingUp, 
-  Clock, ChevronRight, Pill, Target, AlertCircle
+  Plus, Activity, Camera, 
+  Clock, ChevronRight, Pill, AlertCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -108,26 +108,26 @@ const Treatments = () => {
   const otherTreatments = treatments.filter(t => t.status !== 'active');
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted/30">
+    <div className="flex min-h-dvh flex-col bg-muted/30">
       <Navbar />
-      <main className="container flex-1 py-8">
-          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Mes traitements</h1>
-            <p className="text-muted-foreground">Suivez l&apos;evolution de vos traitements</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => navigate('/professional-notes')}>Notes du professionnel</Button>
-            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2"><Plus className="h-4 w-4" /> Nouveau traitement</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <CreateTreatmentForm onSuccess={() => { setCreateOpen(false); loadTreatments(); }} />
-            </DialogContent>
-            </Dialog>
-        </div>
-      </div>
+      <main className="container flex-1 py-4 pb-24 md:py-8 md:pb-8">
+        <PageHeader 
+          title="Mes traitements"
+          subtitle="Suivez l'evolution de vos traitements"
+          action={
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <Button variant="outline" className="h-12 w-full rounded-xl text-base sm:h-10 sm:w-auto sm:text-sm" onClick={() => navigate('/professional-notes')}>Notes pro</Button>
+              <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                <DialogTrigger asChild>
+                  <Button className="h-12 w-full gap-2 rounded-xl text-base sm:h-10 sm:w-auto sm:text-sm"><Plus className="h-4 w-4" /> Nouveau</Button>
+                </DialogTrigger>
+                <DialogContent className="max-h-[90vh] overflow-y-auto">
+                  <CreateTreatmentForm onSuccess={() => { setCreateOpen(false); loadTreatments(); }} />
+                </DialogContent>
+              </Dialog>
+            </div>
+          }
+        />
 
         {loading ? (
           <div className="flex justify-center py-12">
@@ -138,24 +138,24 @@ const Treatments = () => {
             <CardContent className="py-16 text-center">
               <Pill className="mx-auto h-16 w-16 text-muted-foreground/30" />
               <h3 className="mt-4 text-lg font-medium">Aucun traitement</h3>
-              <p className="mt-2 text-muted-foreground">
+              <p className="mt-2 text-sm text-muted-foreground">
                 Commencez a suivre vos traitements pour observer votre progression
               </p>
-              <Button className="mt-6 gap-2" onClick={() => setCreateOpen(true)}>
+              <Button className="mt-6 h-12 gap-2 rounded-xl text-base" onClick={() => setCreateOpen(true)}>
                 <Plus className="h-4 w-4" /> Creer mon premier traitement
               </Button>
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {/* Active treatments */}
             {activeTreatments.length > 0 && (
               <div>
-                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <h2 className="mb-4 flex items-center gap-2 text-base font-semibold md:text-lg">
                   <Activity className="h-5 w-5 text-emerald-500" />
                   Traitements actifs ({activeTreatments.length})
                 </h2>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-3 md:grid-cols-2 md:gap-4">
                   {activeTreatments.map((treatment) => {
                     const daysSince = daysSinceLastEntry(treatment);
                     const needsUpdate = daysSince !== null && daysSince >= 2;
@@ -163,15 +163,15 @@ const Treatments = () => {
                     return (
                       <Card 
                         key={treatment.uuid} 
-                        className={`shadow-sm cursor-pointer transition-all hover:shadow-md ${needsUpdate ? 'border-amber-300' : ''}`}
+                        className={`cursor-pointer shadow-sm transition-all hover:shadow-md ${needsUpdate ? 'border-amber-300' : ''}`}
                         onClick={() => navigate(`/treatments/${treatment.uuid}`)}
                       >
-                        <CardContent className="p-5">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-lg">{treatment.titre}</h3>
+                        <CardContent className="p-4">
+                          <div className="mb-3 flex items-start justify-between">
+                            <div className="min-w-0 flex-1">
+                              <h3 className="truncate font-semibold">{treatment.titre}</h3>
                               {treatment.pathologie_nom && (
-                                <p className="text-sm text-muted-foreground">{treatment.pathologie_nom}</p>
+                                <p className="truncate text-sm text-muted-foreground">{treatment.pathologie_nom}</p>
                               )}
                             </div>
                             <Badge variant="outline" className={statusColor(treatment.status)}>
@@ -180,8 +180,8 @@ const Treatments = () => {
                           </div>
 
                           {treatment.date_fin_prevue && (
-                            <div className="mb-4">
-                              <div className="flex justify-between text-sm mb-1">
+                            <div className="mb-3">
+                              <div className="mb-1 flex justify-between text-sm">
                                 <span className="text-muted-foreground">Progression</span>
                                 <span>{calculateProgress(treatment)}%</span>
                               </div>
@@ -189,28 +189,26 @@ const Treatments = () => {
                             </div>
                           )}
 
-                          <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-4">
-                              <span className="flex items-center gap-1 text-muted-foreground">
-                                <Camera className="h-4 w-4" />
-                                {treatment.total_entries} entrees
-                              </span>
-                              <span className="flex items-center gap-1 text-muted-foreground">
-                                <Clock className="h-4 w-4" />
-                                {frequencyLabel(treatment.frequence_suivi)}
-                              </span>
-                            </div>
+                          <div className="flex flex-wrap items-center gap-2 text-sm">
+                            <span className="flex items-center gap-1 text-muted-foreground">
+                              <Camera className="h-4 w-4" />
+                              {treatment.total_entries}
+                            </span>
+                            <span className="flex items-center gap-1 text-muted-foreground">
+                              <Clock className="h-4 w-4" />
+                              {frequencyLabel(treatment.frequence_suivi)}
+                            </span>
                             {needsUpdate && (
                               <span className="flex items-center gap-1 text-amber-600">
                                 <AlertCircle className="h-4 w-4" />
-                                {daysSince}j sans entree
+                                {daysSince}j
                               </span>
                             )}
                           </div>
 
                           {treatment.professional_nom && (
-                            <p className="mt-3 text-xs text-muted-foreground">
-                              Supervise par Dr. {treatment.professional_nom}
+                            <p className="mt-3 truncate text-xs text-muted-foreground">
+                              Dr. {treatment.professional_nom}
                             </p>
                           )}
                         </CardContent>
@@ -224,33 +222,33 @@ const Treatments = () => {
             {/* Other treatments */}
             {otherTreatments.length > 0 && (
               <div>
-                <h2 className="text-lg font-semibold mb-4 text-muted-foreground">
+                <h2 className="mb-4 text-base font-semibold text-muted-foreground md:text-lg">
                   Autres traitements ({otherTreatments.length})
                 </h2>
                 <div className="space-y-3">
                   {otherTreatments.map((treatment) => (
                     <Card 
                       key={treatment.uuid} 
-                      className="shadow-sm cursor-pointer transition-colors hover:bg-muted/50"
+                      className="cursor-pointer shadow-sm transition-colors hover:bg-muted/50"
                       onClick={() => navigate(`/treatments/${treatment.uuid}`)}
                     >
-                      <CardContent className="flex items-center justify-between p-4">
-                        <div className="flex items-center gap-4">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                      <CardContent className="flex min-h-[64px] items-center justify-between p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-muted">
                             <Pill className="h-5 w-5 text-muted-foreground" />
                           </div>
-                          <div>
-                            <h3 className="font-medium">{treatment.titre}</h3>
-                            <p className="text-sm text-muted-foreground">
+                          <div className="min-w-0">
+                            <h3 className="truncate font-medium">{treatment.titre}</h3>
+                            <p className="truncate text-sm text-muted-foreground">
                               {treatment.pathologie_nom} - {treatment.total_entries} entrees
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <Badge variant="outline" className={statusColor(treatment.status)}>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className={`hidden sm:inline-flex ${statusColor(treatment.status)}`}>
                             {statusLabel(treatment.status)}
                           </Badge>
-                          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                          <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
                         </div>
                       </CardContent>
                     </Card>
@@ -267,6 +265,7 @@ const Treatments = () => {
 
 // Create Treatment Form
 const CreateTreatmentForm = ({ onSuccess }: { onSuccess: () => void }) => {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     titre: '',
@@ -288,7 +287,7 @@ const CreateTreatmentForm = ({ onSuccess }: { onSuccess: () => void }) => {
     setLoading(true);
     try {
       await api.createTreatment(form);
-      toast({ title: 'Succès', description: 'Traitement cree' });
+      toast({ title: 'Succes', description: 'Traitement cree' });
       onSuccess();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Une erreur est survenue';
@@ -303,21 +302,22 @@ const CreateTreatmentForm = ({ onSuccess }: { onSuccess: () => void }) => {
       <DialogHeader>
         <DialogTitle>Nouveau traitement</DialogTitle>
       </DialogHeader>
-      <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+      <form onSubmit={handleSubmit} className="mt-4 space-y-4">
         <div>
           <label className="text-sm font-medium">Titre *</label>
           <Input
             placeholder="Ex: Traitement onychomycose pouce droit"
             value={form.titre}
             onChange={(e) => setForm(f => ({ ...f, titre: e.target.value }))}
+            className="h-12 text-base"
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="text-sm font-medium">Doigt concerne</label>
             <Select value={form.doigt_concerne} onValueChange={(v) => setForm(f => ({ ...f, doigt_concerne: v }))}>
-              <SelectTrigger>
+              <SelectTrigger className="h-12 text-base">
                 <SelectValue placeholder="Selectionner" />
               </SelectTrigger>
               <SelectContent>
@@ -333,7 +333,7 @@ const CreateTreatmentForm = ({ onSuccess }: { onSuccess: () => void }) => {
           <div>
             <label className="text-sm font-medium">Main/Pied</label>
             <Select value={form.main_pied} onValueChange={(v) => setForm(f => ({ ...f, main_pied: v }))}>
-              <SelectTrigger>
+              <SelectTrigger className="h-12 text-base">
                 <SelectValue placeholder="Selectionner" />
               </SelectTrigger>
               <SelectContent>
@@ -353,6 +353,7 @@ const CreateTreatmentForm = ({ onSuccess }: { onSuccess: () => void }) => {
             value={form.objectif}
             onChange={(e) => setForm(f => ({ ...f, objectif: e.target.value }))}
             rows={2}
+            className="text-base"
           />
         </div>
 
@@ -363,22 +364,24 @@ const CreateTreatmentForm = ({ onSuccess }: { onSuccess: () => void }) => {
             value={form.traitement_prescrit}
             onChange={(e) => setForm(f => ({ ...f, traitement_prescrit: e.target.value }))}
             rows={2}
+            className="text-base"
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="text-sm font-medium">Date de fin prevue</label>
             <Input
               type="date"
               value={form.date_fin_prevue}
               onChange={(e) => setForm(f => ({ ...f, date_fin_prevue: e.target.value }))}
+              className="h-12 text-base"
             />
           </div>
           <div>
             <label className="text-sm font-medium">Frequence de suivi</label>
             <Select value={form.frequence_suivi} onValueChange={(v) => setForm(f => ({ ...f, frequence_suivi: v }))}>
-              <SelectTrigger>
+              <SelectTrigger className="h-12 text-base">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -392,8 +395,8 @@ const CreateTreatmentForm = ({ onSuccess }: { onSuccess: () => void }) => {
           </div>
         </div>
 
-        <DialogFooter>
-          <Button type="submit" disabled={loading}>
+        <DialogFooter className="flex-col gap-2 sm:flex-row">
+          <Button type="submit" className="h-12 w-full text-base sm:h-10 sm:w-auto sm:text-sm" disabled={loading}>
             {loading ? 'Creation...' : 'Creer le traitement'}
           </Button>
         </DialogFooter>

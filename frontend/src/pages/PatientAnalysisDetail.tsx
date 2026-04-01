@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Navbar } from '@/components/Navbar';
+import { PageHeader } from '@/components/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 import AccessDenied from '@/components/AccessDenied';
 
 const PatientAnalysisDetail = () => {
   const { patientId, id } = useParams<{ patientId: string; id: string }>();
+  const navigate = useNavigate();
   const [analysis, setAnalysis] = useState<any | null>(null);
   const [conseils, setConseils] = useState<any[]>([]);
   const [ownerName, setOwnerName] = useState<string | null>(null);
@@ -25,7 +28,7 @@ const PatientAnalysisDetail = () => {
         const data = res.data || res;
         const a = data.analysis || data;
         setAnalysis(a);
-        // collect recommendations from several possible fields
+        
         const candidates: any[] = [];
         const pushIfArray = (v: any) => { if (Array.isArray(v)) candidates.push(...v); };
         pushIfArray(data.conseils || data.conseil || data.recommandations || data.recommendations);
@@ -34,23 +37,22 @@ const PatientAnalysisDetail = () => {
         let recs = candidates;
 
         if (recs.length === 0) {
-          // fallback inference from IA result
           const ia = a?.result || a;
           const main = ia?.prediction || (Array.isArray(ia?.predictions) ? ia.predictions[0] : null) || null;
           const prob = main?.probability ?? ia?.score ?? a?.score_confiance ?? a?.score ?? null;
           const risk = ia?.risk_level || ia?.niveau_risque || a?.niveau_risque || a?.risk_level || null;
 
           if (prob !== null && Number(prob) < 0.5) {
-            recs.push({ type: 'avertissement', titre: 'Confiance limitée', texte: 'Le score de confiance est faible. Interprétation prudente recommandée.' , priorite: 0 });
+            recs.push({ type: 'avertissement', titre: 'Confiance limitee', texte: 'Le score de confiance est faible. Interpretation prudente recommandee.', priorite: 0 });
           }
           if (risk && ['eleve', 'critique', 'high'].includes(String(risk))) {
-            recs.push({ type: 'consultation', titre: 'Consultation recommandée', texte: 'Le niveau de risque détecté suggère de consulter un spécialiste.', priorite: 1 });
+            recs.push({ type: 'consultation', titre: 'Consultation recommandee', texte: 'Le niveau de risque detecte suggere de consulter un specialiste.', priorite: 1 });
           }
           const label = (main && (main.label || main.name)) || ia?.pathologie || ia?.pathologie_label || a?.pathologie;
           const adviceMap: Record<string, any[]> = {
-            'onychomycose': [{ type: 'hygiene', titre: 'Hygiène', texte: 'Gardez vos ongles propres et secs.' , priorite: 2 }],
-            'psoriasis': [{ type: 'general', titre: 'Information', texte: 'Le psoriasis unguéal peut nécessiter un suivi dermatologique.', priorite: 2 }],
-            'sain': [{ type: 'general', titre: 'Bonne nouvelle', texte: 'Votre ongle semble sain. Continuez les soins préventifs.', priorite: 3 }]
+            'onychomycose': [{ type: 'hygiene', titre: 'Hygiene', texte: 'Gardez vos ongles propres et secs.', priorite: 2 }],
+            'psoriasis': [{ type: 'general', titre: 'Information', texte: 'Le psoriasis ungueal peut necessiter un suivi dermatologique.', priorite: 2 }],
+            'sain': [{ type: 'general', titre: 'Bonne nouvelle', texte: 'Votre ongle semble sain. Continuez les soins preventifs.', priorite: 3 }]
           };
           if (label) {
             const key = String(label).toLowerCase();
@@ -60,7 +62,6 @@ const PatientAnalysisDetail = () => {
 
         setConseils(recs.map((r: any) => ({ ...r })));
 
-        // resolve owner name when possible
         try {
           const uid = a?.user_id ?? a?.userId ?? a?.user;
           if (uid) {
@@ -74,15 +75,13 @@ const PatientAnalysisDetail = () => {
           } else if (a?.user_nom || a?.user_email) {
             setOwnerName(a.user_nom || a.user_email);
           }
-        } catch (e) {
-          // ignore owner resolution failures
-        }
+        } catch (e) {}
       } catch (err: any) {
         console.error('Failed to load analysis', err);
         const status = err?.status || err?.response?.status || err?.statusCode;
         if (status === 403) {
           setAccessDenied(true);
-          setAccessMessage(err?.message || (err?.response?.data?.message) || 'Accès non autorisé');
+          setAccessMessage(err?.message || (err?.response?.data?.message) || 'Acces non autorise');
         }
       } finally {
         setLoading(false);
@@ -97,115 +96,199 @@ const PatientAnalysisDetail = () => {
     return apiRoot + url;
   };
 
-  if (loading) return (<div className="min-h-screen"><Navbar /><main className="container py-8">Chargement...</main></div>);
-  if (accessDenied) return (<div className="min-h-screen"><Navbar /><main className="container py-8"><AccessDenied message={accessMessage} backTo="/professional" backLabel="Retour"/></main></div>);
-  if (!analysis) return (<div className="min-h-screen"><Navbar /><main className="container py-8">Analyse introuvable</main></div>);
+  if (loading) return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <main className="flex items-center justify-center py-20">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </main>
+    </div>
+  );
+
+  if (accessDenied) return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <main className="px-4 py-8 md:container">
+        <AccessDenied message={accessMessage} backTo="/professional" backLabel="Retour" />
+      </main>
+    </div>
+  );
+
+  if (!analysis) return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <main className="px-4 py-8 text-center md:container">
+        <p className="text-muted-foreground">Analyse introuvable</p>
+        <Button variant="outline" className="mt-4" onClick={() => navigate(-1)}>Retour</Button>
+      </main>
+    </div>
+  );
+
+  const ia = analysis.result || analysis;
+  const main = ia?.prediction || ia?.predictions?.[0] || { label: ia?.pathologie || ia?.pathologie_label };
+  const preds = ia?.predictions || [];
+  const heat = ia?.heatmap_url || ia?.heatmap || analysis.heatmap_url || analysis.heatmap_path;
 
   return (
-    <div className="min-h-screen flex flex-col bg-muted/30">
+    <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="container py-8">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Analyse patient: {analysis.uuid || analysis.id}</h1>
-            <p className="text-muted-foreground">Pathologie: {analysis.pathologie || analysis.pathologie_label || '—'}</p>
-          </div>
-          <div>
-            <Link to={`/professional`}>
-              <Button variant="ghost">Retour</Button>
-            </Link>
+      <main className="px-4 py-4 pb-24 md:container md:py-8 md:pb-8">
+        {/* Mobile Header */}
+        <div className="mb-4 flex items-center gap-3 md:hidden">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-lg font-semibold">Analyse patient</h1>
+            <p className="truncate text-sm text-muted-foreground">{analysis.pathologie || analysis.pathologie_label || 'Details'}</p>
           </div>
         </div>
 
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Détails</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="col-span-1">
-                {analysis.thumbnail_url ? (
-                  <img src={resolveStorageUrl(analysis.thumbnail_url)} alt="thumb" className="w-full rounded" />
-                ) : analysis.image_url ? (
-                  <img src={resolveStorageUrl(analysis.image_url)} alt="image" className="w-full rounded" />
-                ) : (
-                  <div className="h-48 bg-slate-100 rounded flex items-center justify-center">Aucune image</div>
-                )}
+        {/* Desktop Header */}
+        <div className="mb-6 hidden items-center justify-between md:flex">
+          <PageHeader
+            title={`Analyse patient: ${analysis.uuid || analysis.id}`}
+            subtitle={`Pathologie: ${analysis.pathologie || analysis.pathologie_label || '—'}`}
+          />
+          <Link to="/professional">
+            <Button variant="outline">Retour</Button>
+          </Link>
+        </div>
+
+        {/* Image */}
+        <Card className="mb-4 overflow-hidden border-0 shadow-sm md:border md:mb-6">
+          <CardContent className="p-0">
+            {analysis.thumbnail_url || analysis.image_url ? (
+              <img
+                src={resolveStorageUrl(analysis.thumbnail_url || analysis.image_url)!}
+                alt="Image analyse"
+                className="h-48 w-full object-cover md:h-64"
+              />
+            ) : (
+              <div className="flex h-48 items-center justify-center bg-muted md:h-64">
+                <span className="text-muted-foreground">Aucune image</span>
               </div>
-              <div className="col-span-2 space-y-3">
-                      <p><strong>Statut:</strong> {analysis.status}</p>
-                      <p><strong>Date analyse:</strong> {analysis.date_analyse ? new Date(analysis.date_analyse).toLocaleString('fr') : '—'}</p>
-                      <p><strong>Score confiance:</strong> {analysis.score_confiance ?? '—'}</p>
-                      <p><strong>Niveau risque:</strong> {analysis.niveau_risque ?? '—'}</p>
-                      {ownerName && <p><strong>Propriétaire:</strong> {ownerName}</p>}
-
-                      {(() => {
-                        const ia = analysis.result || analysis;
-                        if (!ia) return null;
-                        const main = ia.prediction || ia.predictions?.[0] || { label: ia.pathologie || ia.pathologie_label };
-                        const preds = ia.predictions || ia.predictions || (ia.predictions_from_model) || [];
-                        const heat = ia.heatmap_url || ia.heatmap || analysis.heatmap_url || analysis.heatmap_path;
-
-                        return (
-                          <div className="space-y-3">
-                            <h3 className="font-semibold">Détails IA</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              <div>
-                                <p><strong>Prédiction principale:</strong> {main?.label}</p>
-                                <p><strong>Confiance:</strong> {('probability' in (main || {})) ? Math.round((main.probability || 0) * 100) + '%' : (ia.score !== undefined ? Math.round(ia.score * 100) + '%' : (analysis.score_confiance ? (Math.round(analysis.score_confiance * 100) + '%') : '—'))}</p>
-                                <p><strong>Niveau risque:</strong> <Badge variant="outline">{ia.risk_level || ia.niveau_risque || analysis.niveau_risque || '—'}</Badge></p>
-                              </div>
-                              <div>
-                                <p><strong>Qualité image:</strong> {ia.image_quality || ia.image_quality_level || '—'}</p>
-                                <p><strong>Version modèle:</strong> {ia.model_version || analysis.model_version || '—'}</p>
-                                {heat && (
-                                  <p><a href={resolveStorageUrl(heat.startsWith('http') ? heat : heat)} target="_blank" rel="noreferrer" className="text-primary">Voir heatmap</a></p>
-                                )}
-                              </div>
-                            </div>
-
-                            {Array.isArray(preds) && preds.length > 0 && (
-                              <div>
-                                <h4 className="font-medium">Prédictions</h4>
-                                <div className="mt-2 space-y-1">
-                                  {preds.map((p: any, i: number) => (
-                                    <div key={i} className="flex items-center justify-between border rounded px-3 py-2">
-                                      <div>
-                                        <div className="font-medium">{p.label}</div>
-                                        {p.description && <div className="text-sm text-muted-foreground">{p.description}</div>}
-                                      </div>
-                                      <div className="text-sm font-mono">{p.probability ? Math.round(p.probability * 100) + '%' : '—'}</div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
-
-                      <div>
-                        <h3 className="font-semibold">Recommandations</h3>
-                        <div className="mt-2 space-y-2">
-                          {conseils && conseils.length > 0 ? (
-                            [...conseils].sort((a: any, b: any) => (a.priorite ?? 0) - (b.priorite ?? 0)).map((c: any, idx: number) => (
-                              <div key={idx} className="rounded-md border p-3">
-                                <div className="flex items-center justify-between">
-                                  <div className="font-medium">{c.titre || c.type || 'Recommandation'}</div>
-                                  <div className="text-xs text-muted-foreground">Priorité: {c.priorite ?? 0}</div>
-                                </div>
-                                <div className="text-sm text-muted-foreground mt-1">{c.texte || c.text || c.description}</div>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-sm text-muted-foreground">Aucune recommandation disponible</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-            </div>
+            )}
           </CardContent>
         </Card>
+
+        {/* Quick Stats */}
+        <div className="mb-4 grid grid-cols-2 gap-3 md:mb-6 md:grid-cols-4 md:gap-4">
+          <div className="rounded-xl border bg-card p-3 md:p-4">
+            <p className="text-xs text-muted-foreground md:text-sm">Statut</p>
+            <p className="mt-1 font-semibold">{analysis.status}</p>
+          </div>
+          <div className="rounded-xl border bg-card p-3 md:p-4">
+            <p className="text-xs text-muted-foreground md:text-sm">Confiance</p>
+            <p className="mt-1 font-semibold">
+              {('probability' in (main || {})) 
+                ? Math.round((main.probability || 0) * 100) + '%' 
+                : (ia?.score !== undefined 
+                  ? Math.round(ia.score * 100) + '%' 
+                  : (analysis.score_confiance ? Math.round(analysis.score_confiance * 100) + '%' : '—'))}
+            </p>
+          </div>
+          <div className="rounded-xl border bg-card p-3 md:p-4">
+            <p className="text-xs text-muted-foreground md:text-sm">Niveau risque</p>
+            <Badge variant="outline" className="mt-1">
+              {ia?.risk_level || ia?.niveau_risque || analysis.niveau_risque || '—'}
+            </Badge>
+          </div>
+          <div className="rounded-xl border bg-card p-3 md:p-4">
+            <p className="text-xs text-muted-foreground md:text-sm">Date</p>
+            <p className="mt-1 text-sm font-medium">
+              {analysis.date_analyse ? new Date(analysis.date_analyse).toLocaleDateString('fr') : '—'}
+            </p>
+          </div>
+        </div>
+
+        {/* Predictions */}
+        {Array.isArray(preds) && preds.length > 0 && (
+          <Card className="mb-4 border-0 shadow-sm md:border md:mb-6">
+            <CardHeader className="px-4 pb-2 pt-4 md:px-6">
+              <CardTitle className="text-base md:text-lg">Predictions IA</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 md:px-6">
+              <div className="space-y-2">
+                {preds.map((p: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between rounded-lg border p-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">{p.label}</p>
+                      {p.description && <p className="truncate text-sm text-muted-foreground">{p.description}</p>}
+                    </div>
+                    <span className="ml-3 shrink-0 font-mono text-sm">
+                      {p.probability ? Math.round(p.probability * 100) + '%' : '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Recommendations */}
+        <Card className="border-0 shadow-sm md:border">
+          <CardHeader className="px-4 pb-2 pt-4 md:px-6">
+            <CardTitle className="text-base md:text-lg">Recommandations</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 md:px-6">
+            {conseils && conseils.length > 0 ? (
+              <div className="space-y-3">
+                {[...conseils].sort((a: any, b: any) => (a.priorite ?? 0) - (b.priorite ?? 0)).map((c: any, idx: number) => {
+                  const Icon = c.type === 'avertissement' ? AlertTriangle : c.type === 'consultation' ? Info : CheckCircle;
+                  const iconColor = c.type === 'avertissement' ? 'text-amber-500' : c.type === 'consultation' ? 'text-blue-500' : 'text-emerald-500';
+                  return (
+                    <div key={idx} className="flex gap-3 rounded-lg border p-3 md:p-4">
+                      <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${iconColor}`} />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">{c.titre || c.type || 'Recommandation'}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{c.texte || c.text || c.description}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Aucune recommandation disponible</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Additional Info */}
+        {(ownerName || heat) && (
+          <Card className="mt-4 border-0 shadow-sm md:border md:mt-6">
+            <CardContent className="px-4 py-4 md:px-6">
+              <div className="space-y-2">
+                {ownerName && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Proprietaire</span>
+                    <span className="font-medium">{ownerName}</span>
+                  </div>
+                )}
+                {heat && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Heatmap</span>
+                    <a href={resolveStorageUrl(heat)!} target="_blank" rel="noreferrer" className="text-primary">
+                      Voir
+                    </a>
+                  </div>
+                )}
+                {(ia?.image_quality || ia?.image_quality_level) && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Qualite image</span>
+                    <span className="font-medium">{ia.image_quality || ia.image_quality_level}</span>
+                  </div>
+                )}
+                {(ia?.model_version || analysis.model_version) && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Version modele</span>
+                    <span className="font-medium">{ia.model_version || analysis.model_version}</span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </main>
     </div>
   );

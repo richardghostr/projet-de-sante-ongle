@@ -7,7 +7,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Camera, Clock, Activity, TrendingUp, AlertTriangle, CheckCircle, ArrowRight } from 'lucide-react';
+import { PageHeader } from '@/components/PageHeader';
+import { StatCard } from '@/components/StatCard';
+import { Camera, Clock, Activity, AlertTriangle, CheckCircle, ArrowRight } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -45,13 +47,13 @@ const Dashboard = () => {
   const totalAnalyses = stats?.total_analyses ?? 0;
   const resultsSains = stats?.par_niveau_risque?.sain ?? 0;
   const pathologiesDetected = Array.isArray(stats?.par_pathologie) ? (stats.par_pathologie.reduce((acc:any, p:any) => acc + (p.count || 0), 0)) : 0;
-  const lastAnalysisDate = stats?.derniere_analyse?.date_analyse ? new Date(stats.derniere_analyse.date_analyse).toLocaleDateString('fr') : '—';
+  const lastAnalysisDate = stats?.derniere_analyse?.date_analyse ? new Date(stats.derniere_analyse.date_analyse).toLocaleDateString('fr') : '-';
 
   const statCards = [
     { label: 'Analyses totales', value: totalAnalyses, icon: Activity, color: 'text-primary' },
-    { label: 'Résultats sains', value: resultsSains, icon: CheckCircle, color: 'text-emerald-500' },
-    { label: 'Pathologies détectées', value: pathologiesDetected, icon: AlertTriangle, color: 'text-amber-500' },
-    { label: 'Dernière analyse', value: lastAnalysisDate, icon: Clock, color: 'text-blue-500' },
+    { label: 'Resultats sains', value: resultsSains, icon: CheckCircle, color: 'text-emerald-500' },
+    { label: 'Pathologies', value: pathologiesDetected, icon: AlertTriangle, color: 'text-amber-500' },
+    { label: 'Derniere analyse', value: lastAnalysisDate, icon: Clock, color: 'text-blue-500' },
   ];
 
   const riskColor = (risk: string) => {
@@ -60,47 +62,48 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted/30">
+    <div className="flex min-h-dvh flex-col bg-muted/30">
       <Navbar />
-      <main className="container flex-1 py-8">
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Bonjour, {user?.prenom || user?.nom} 👋</h1>
-            <p className="text-muted-foreground">Voici un résumé de vos analyses</p>
-          </div>
-          <Button asChild className="gap-2 rounded-xl">
-            <Link to="/analyze"><Camera className="h-4 w-4" /> Nouvelle analyse</Link>
-          </Button>
-        </div>
+      <main className="container flex-1 py-4 pb-24 md:py-8 md:pb-8">
+        <PageHeader 
+          title={`Bonjour, ${user?.prenom || user?.nom}`}
+          subtitle="Voici un resume de vos analyses"
+          action={
+            <Button asChild className="h-12 w-full gap-2 rounded-xl text-base md:h-10 md:w-auto md:text-sm">
+              <Link to="/analyze"><Camera className="h-4 w-4" /> Nouvelle analyse</Link>
+            </Button>
+          }
+        />
+
         {/* Invitations */}
         <div className="mb-6">
           <Card className="shadow-sm">
-            <CardHeader className="flex-row items-center justify-between">
-              <CardTitle className="text-lg">Invitations de suivi</CardTitle>
-              <Button variant="ghost" size="sm" asChild className="gap-1">
-                <Link to="/patient/follow-requests">Mes demandes de suivi</Link>
+            <CardHeader className="flex-row items-center justify-between p-4 md:p-6">
+              <CardTitle className="text-base md:text-lg">Invitations de suivi</CardTitle>
+              <Button variant="ghost" size="sm" asChild className="gap-1 text-xs md:text-sm">
+                <Link to="/patient/follow-requests">Mes demandes</Link>
               </Button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
               {invLoading ? (
                 <div className="flex justify-center py-6"><div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
               ) : invitations.length === 0 ? (
-                <div className="py-6 text-center text-muted-foreground">Vous n'avez aucune invitation pour le moment.</div>
+                <div className="py-6 text-center text-sm text-muted-foreground">Vous n&apos;avez aucune invitation pour le moment.</div>
               ) : (
                 <div className="space-y-3">
                   {invitations.map((inv: any) => (
-                    <div key={inv.link_id} className="flex items-center justify-between rounded-xl border p-3">
+                    <div key={inv.link_id} className="flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="text-sm font-medium">{inv.professional_prenom ? `${inv.professional_prenom} ${inv.professional_nom}` : inv.professional_nom}</p>
                         <p className="text-xs text-muted-foreground">{inv.professional_email}</p>
-                        <p className="text-xs text-muted-foreground">Reçue le {new Date(inv.created_at).toLocaleDateString('fr')}</p>
+                        <p className="text-xs text-muted-foreground">Recue le {new Date(inv.created_at).toLocaleDateString('fr')}</p>
                       </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="ghost" onClick={() => setConfirmingInvite({ link_id: inv.link_id, profName: inv.professional_prenom ? `${inv.professional_prenom} ${inv.professional_nom}` : inv.professional_nom })}>Accepter</Button>
-                        <Button size="sm" variant="outline" onClick={async () => {
+                      <div className="flex w-full gap-2 sm:w-auto">
+                        <Button size="sm" className="h-11 flex-1 sm:flex-none" onClick={() => setConfirmingInvite({ link_id: inv.link_id, profName: inv.professional_prenom ? `${inv.professional_prenom} ${inv.professional_nom}` : inv.professional_nom })}>Accepter</Button>
+                        <Button size="sm" variant="outline" className="h-11 flex-1 sm:flex-none" onClick={async () => {
                           try {
                             await api.respondInvitation(inv.link_id, 'reject');
-                            toast({ title: 'Invitation refusée', description: 'Vous avez refusé l\'invitation.' });
+                            toast({ title: 'Invitation refusee', description: 'Vous avez refuse l\'invitation.' });
                             const res: any = await api.getMyInvitations();
                             setInvitations(res?.data?.invitations || res?.invitations || []);
                           } catch (err) {
@@ -120,19 +123,19 @@ const Dashboard = () => {
         <Dialog open={!!confirmingInvite} onOpenChange={(open) => { if (!open) setConfirmingInvite(null); }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Confirmer l'invitation</DialogTitle>
+              <DialogTitle>Confirmer l&apos;invitation</DialogTitle>
             </DialogHeader>
             <div className="py-2">
-              <p>Accepter l'invitation de suivi{confirmingInvite?.profName ? ` de ${confirmingInvite.profName}` : ''} ?</p>
+              <p>Accepter l&apos;invitation de suivi{confirmingInvite?.profName ? ` de ${confirmingInvite.profName}` : ''} ?</p>
             </div>
             <DialogFooter>
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setConfirmingInvite(null)}>Annuler</Button>
-                <Button onClick={async () => {
+              <div className="flex w-full gap-2 sm:justify-end">
+                <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => setConfirmingInvite(null)}>Annuler</Button>
+                <Button className="flex-1 sm:flex-none" onClick={async () => {
                   if (!confirmingInvite) return;
                     try {
                       await api.respondInvitation(confirmingInvite.link_id, 'accept');
-                      toast({ title: 'Invitation acceptée', description: 'Vous êtes maintenant lié au professionnel.' });
+                      toast({ title: 'Invitation acceptee', description: 'Vous etes maintenant lie au professionnel.' });
                       setConfirmingInvite(null);
                       navigate('/treatments');
                     } catch (err) {
@@ -145,38 +148,28 @@ const Dashboard = () => {
         </Dialog>
 
         {/* Stats */}
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {statCards.map(({ label, value, icon: Icon, color }) => (
-            <Card key={label} className="shadow-sm">
-              <CardContent className="flex items-center gap-4 p-5">
-                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted ${color}`}>
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">{label}</p>
-                  <p className="text-xl font-bold tabular-nums">{value}</p>
-                </div>
-              </CardContent>
-            </Card>
+        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+          {statCards.map(({ label, value, icon, color }) => (
+            <StatCard key={label} label={label} value={value} icon={icon} color={color} />
           ))}
         </div>
 
         {/* Recent analyses */}
         <Card className="shadow-sm">
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle className="text-lg">Analyses récentes</CardTitle>
+          <CardHeader className="flex-row items-center justify-between p-4 md:p-6">
+            <CardTitle className="text-base md:text-lg">Analyses recentes</CardTitle>
             <Button variant="ghost" size="sm" asChild className="gap-1 text-primary">
               <Link to="/history">Tout voir <ArrowRight className="h-3.5 w-3.5" /></Link>
             </Button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
             {loading ? (
               <div className="flex justify-center py-8"><div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
             ) : recent.length === 0 ? (
               <div className="py-12 text-center">
                 <Camera className="mx-auto h-12 w-12 text-muted-foreground/40" />
                 <p className="mt-3 text-muted-foreground">Aucune analyse pour le moment</p>
-                <Button asChild className="mt-4 gap-2 rounded-xl" size="sm">
+                <Button asChild className="mt-4 h-11 gap-2 rounded-xl" size="sm">
                   <Link to="/analyze"><Camera className="h-4 w-4" /> Lancer une analyse</Link>
                 </Button>
               </div>
@@ -186,14 +179,14 @@ const Dashboard = () => {
                   <Link
                     key={a.id || a.uuid}
                     to={`/history`}
-                    className="flex items-center justify-between rounded-xl border p-4 transition-colors hover:bg-muted/50"
+                    className="flex min-h-[64px] items-center justify-between rounded-xl border p-3 transition-colors hover:bg-muted/50 md:p-4"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-muted md:h-10 md:w-10">
                         <Activity className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium">{a.pathologie_label || a.diagnostic || 'Analyse'}</p>
+                        <p className="text-sm font-semibold">{a.pathologie_label || a.diagnostic || 'Analyse'}</p>
                         <p className="text-xs text-muted-foreground">
                           {a.date_analyse ? new Date(a.date_analyse).toLocaleDateString('fr') : ''}
                         </p>

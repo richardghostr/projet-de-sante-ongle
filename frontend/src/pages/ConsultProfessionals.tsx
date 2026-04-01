@@ -3,12 +3,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import ProfessionalCard from '@/components/ProfessionalCard';
 import Navbar from '@/components/Navbar';
+import { PageHeader } from '@/components/PageHeader';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, Filter, Search, X } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 const ConsultProfessionals: React.FC = () => {
   const { analysisId } = useParams();
@@ -22,7 +25,6 @@ const ConsultProfessionals: React.FC = () => {
   const [filterSpecialty, setFilterSpecialty] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'relevance'|'experience'|'alpha'>('relevance');
   const [following, setFollowing] = useState<Set<number>>(new Set());
-  const [showFilters, setShowFilters] = useState(false);
 
   const { toast } = useToast();
 
@@ -31,14 +33,11 @@ const ConsultProfessionals: React.FC = () => {
     api.listProfessionals().then((res: any) => {
       setProfessionals(res.professionals || []);
     }).catch((e) => console.error(e)).finally(() => setLoading(false));
-    // load patient's active professionals to mark professionals already linked
     api.getPatientActiveProfessionals().then((r: any) => {
       const pros = r?.professionals ?? [];
       const ids = pros.map((p: any) => p.id || p.professional_id).filter(Boolean);
       setFollowing(new Set(ids));
-    }).catch(() => {
-      // ignore
-    });
+    }).catch(() => {});
   }, []);
 
   const specialties = useMemo(() => {
@@ -78,114 +77,200 @@ const ConsultProfessionals: React.FC = () => {
       setOpen(false);
       navigate('/profile');
     } catch (err: any) {
-      toast({ title: 'Erreur', description: err.message || 'Impossible d envoyer la demande' });
+      toast({ title: 'Erreur', description: err.message || "Impossible d'envoyer la demande" });
     }
   };
 
+  const resetFilters = () => {
+    setFilterSpecialty(null);
+    setQuery('');
+    setSortBy('relevance');
+  };
+
+  const FilterContent = () => (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Specialite</label>
+        <Select value={filterSpecialty || ''} onValueChange={(v) => setFilterSpecialty(v || null)}>
+          <SelectTrigger className="h-12 md:h-10">
+            <SelectValue placeholder="Toutes les specialites" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Toutes</SelectItem>
+            {specialties.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Trier par</label>
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+          <SelectTrigger className="h-12 md:h-10">
+            <SelectValue placeholder="Trier" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="relevance">Pertinence</SelectItem>
+            <SelectItem value="experience">Experience</SelectItem>
+            <SelectItem value="alpha">Ordre alphabetique</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <Button variant="outline" onClick={resetFilters} className="w-full">
+        Reinitialiser les filtres
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-surface-50">
+    <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white shadow-sm rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold">Consulter un professionnel</h2>
-              <p className="text-sm text-muted-foreground mt-1">Choisissez un professionnel approuvé par l'administrateur. Les spécialités pertinentes sont affichées en priorité.</p>
-            </div>
-            <Button variant="ghost" onClick={() => navigate(-1)}>Retour</Button>
-          </div>
-
-          <div className="mt-6">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1">
-                <h3 className="sr-only">Liste des professionnels</h3>
-              </div>
-              <div className="sm:hidden">
-                <Button variant="ghost" onClick={() => setShowFilters(v => !v)} aria-expanded={showFilters} aria-controls="filters-panel">Filtres</Button>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-              <div className={`lg:col-span-2 space-y-4 ${showFilters ? '' : ''}`}>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                  <Input className="flex-1" placeholder="Rechercher par nom ou spécialité" value={query} onChange={(e:any) => setQuery(e.target.value)} />
-                  <Select onValueChange={(v) => setFilterSpecialty(v || null)}>
-                    <SelectTrigger className="w-48"><SelectValue placeholder="Filtrer par spécialité" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Toutes</SelectItem>
-                      {specialties.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Select onValueChange={(v) => setSortBy(v as any)}>
-                    <SelectTrigger className="w-44"><SelectValue placeholder="Trier" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="relevance">Pertinence</SelectItem>
-                      <SelectItem value="experience">Expérience</SelectItem>
-                      <SelectItem value="alpha">Ordre alphabétique</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="mt-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {loading && <div className="col-span-full text-center py-8">Chargement...</div>}
-                    {filtered.map((p) => (
-                      <div key={p.id} className="transition-transform transform hover:scale-[1.01] hover:shadow-md rounded-lg">
-                        <ProfessionalCard professional={p} onRequest={handleRequest} isFollowing={following.has(p.id)} />
-                      </div>
-                    ))}
-                  </div>
-
-                  {!loading && filtered.length === 0 && (
-                    <div className="col-span-full text-center py-12 text-muted-foreground">
-                      <h3 className="text-lg font-semibold mb-2">Aucun professionnel trouvé</h3>
-                      <p className="max-w-xl mx-auto">Essayez de modifier vos filtres ou revenez plus tard. Si vous avez besoin d'aide, contactez l'administrateur.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <aside id="filters-panel" className="space-y-4">
-                <div className="p-4 bg-surface-100 rounded-md sticky top-24">
-                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700">Professionnels approuvés</Badge>
-                  <div className="mt-4 text-sm text-muted-foreground">Affinez la recherche par spécialité ou triez par expérience pour trouver le professionnel adapté.</div>
-                </div>
-
-                <div className="p-4 bg-surface-100 rounded-md">
-                  <h4 className="text-sm font-medium mb-2">Filtres rapides</h4>
-                  <div className="flex flex-col gap-2">
-                    <Button variant="outline" onClick={() => { setFilterSpecialty(null); setQuery(''); setSortBy('relevance'); }}>Réinitialiser</Button>
-                  </div>
-                </div>
-              </aside>
-            </div>
-          </div>
-
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Envoyer une demande de suivi</DialogTitle>
-                <DialogDescription>Vous pouvez ajouter un message optionnel au professionnel.</DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4 py-4">
-                <div>
-                  <label className="text-sm font-medium">Professionnel</label>
-                  <div className="mt-1 text-base">{selected ? `${selected.prenom || ''} ${selected.nom || ''}` : ''}</div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Message (optionnel)</label>
-                  <Input value={message} onChange={(e:any) => setMessage(e.target.value)} placeholder="Ajoutez un message au professionnel" />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-                <Button onClick={sendRequest}>Envoyer la demande</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+      <main className="px-4 py-4 pb-24 md:container md:py-8 md:pb-8">
+        {/* Mobile Header */}
+        <div className="mb-4 flex items-center gap-3 md:hidden">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-lg font-semibold">Consulter un professionnel</h1>
         </div>
+
+        {/* Desktop Header */}
+        <div className="hidden md:block">
+          <div className="mb-6 flex items-center justify-between">
+            <PageHeader
+              title="Consulter un professionnel"
+              subtitle="Choisissez un professionnel approuve par l'administrateur."
+            />
+            <Button variant="outline" onClick={() => navigate(-1)}>Retour</Button>
+          </div>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="mb-4 flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="h-12 pl-10 md:h-10"
+              placeholder="Rechercher..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          
+          {/* Mobile Filter Sheet */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon" className="h-12 w-12 shrink-0 md:hidden">
+                <Filter className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="h-auto rounded-t-2xl">
+              <SheetHeader>
+                <SheetTitle>Filtres</SheetTitle>
+              </SheetHeader>
+              <div className="py-4">
+                <FilterContent />
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          {/* Desktop Filters */}
+          <div className="hidden gap-2 md:flex">
+            <Select value={filterSpecialty || ''} onValueChange={(v) => setFilterSpecialty(v || null)}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Specialite" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Toutes</SelectItem>
+                {specialties.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Trier" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="relevance">Pertinence</SelectItem>
+                <SelectItem value="experience">Experience</SelectItem>
+                <SelectItem value="alpha">Alphabetique</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Active Filters */}
+        {(filterSpecialty || sortBy !== 'relevance') && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {filterSpecialty && (
+              <Badge variant="secondary" className="gap-1 pr-1">
+                {filterSpecialty}
+                <button onClick={() => setFilterSpecialty(null)} className="ml-1 rounded-full p-0.5 hover:bg-muted">
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            {sortBy !== 'relevance' && (
+              <Badge variant="secondary" className="gap-1 pr-1">
+                {sortBy === 'experience' ? 'Experience' : 'Alphabetique'}
+                <button onClick={() => setSortBy('relevance')} className="ml-1 rounded-full p-0.5 hover:bg-muted">
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {/* Results */}
+        {loading ? (
+          <div className="py-12 text-center text-muted-foreground">Chargement...</div>
+        ) : filtered.length === 0 ? (
+          <div className="py-12 text-center">
+            <p className="text-lg font-medium">Aucun professionnel trouve</p>
+            <p className="mt-1 text-sm text-muted-foreground">Essayez de modifier vos filtres</p>
+            <Button variant="outline" onClick={resetFilters} className="mt-4">
+              Reinitialiser les filtres
+            </Button>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((p) => (
+              <div key={p.id} className="transition-transform hover:scale-[1.01]">
+                <ProfessionalCard professional={p} onRequest={handleRequest} isFollowing={following.has(p.id)} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Request Dialog */}
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent className="mx-4 max-w-lg rounded-2xl">
+            <DialogHeader>
+              <DialogTitle>Envoyer une demande de suivi</DialogTitle>
+              <DialogDescription>Vous pouvez ajouter un message optionnel au professionnel.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <label className="text-sm font-medium">Professionnel</label>
+                <div className="mt-1 text-base">{selected ? `${selected.prenom || ''} ${selected.nom || ''}` : ''}</div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Message (optionnel)</label>
+                <Input
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Ajoutez un message..."
+                  className="h-12 md:h-10"
+                />
+              </div>
+            </div>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" onClick={() => setOpen(false)} className="h-12 sm:h-10">
+                Annuler
+              </Button>
+              <Button onClick={sendRequest} className="h-12 sm:h-10">
+                Envoyer la demande
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

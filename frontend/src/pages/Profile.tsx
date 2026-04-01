@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { Navbar } from '@/components/Navbar';
+import { PageHeader } from '@/components/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { User, Lock, Trash2 } from 'lucide-react';
+import { User, Lock, Trash2, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 const Profile = () => {
   const { user, updateUser, logout } = useAuth();
@@ -19,6 +21,7 @@ const Profile = () => {
   const [passwords, setPasswords] = useState({ current_password: '', new_password: '', new_password_confirmation: '' });
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [loadingPwd, setLoadingPwd] = useState(false);
+  const [passwordSheetOpen, setPasswordSheetOpen] = useState(false);
 
   useEffect(() => {
     if (user) setForm({ nom: user.nom || '', prenom: user.prenom || '', telephone: user.telephone || '', date_naissance: user.date_naissance || '' });
@@ -34,7 +37,6 @@ const Profile = () => {
       adresse: user.adresse || user.adresse_pro || '',
       ville: user.ville || '',
       pays: user.pays || '',
-      // professional
       specialite: user.specialite || '',
       sous_specialite: user.sous_specialite || '',
       matricule: user.matricule || '',
@@ -54,13 +56,12 @@ const Profile = () => {
     setLoadingProfile(true);
     try {
       const payload = { ...form, ...extra };
-      // normalize allergies
       if (payload.allergies && typeof payload.allergies === 'string') {
         payload.allergies = payload.allergies.split(',').map((s: string) => s.trim()).filter(Boolean);
       }
       const res = await api.updateProfile(payload);
       updateUser(res.data?.user || { ...user!, ...payload });
-      toast({ title: 'Profil mis à jour' });
+      toast({ title: 'Profil mis a jour' });
     } catch (err: any) {
       toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
     } finally {
@@ -77,8 +78,9 @@ const Profile = () => {
     setLoadingPwd(true);
     try {
       await api.changePassword(passwords);
-      toast({ title: 'Mot de passe modifié' });
+      toast({ title: 'Mot de passe modifie' });
       setPasswords({ current_password: '', new_password: '', new_password_confirmation: '' });
+      setPasswordSheetOpen(false);
     } catch (err: any) {
       toast({ title: 'Erreur', description: err.message, variant: 'destructive' });
     } finally {
@@ -87,7 +89,7 @@ const Profile = () => {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.')) return;
+    if (!confirm('Etes-vous sur de vouloir supprimer votre compte ? Cette action est irreversible.')) return;
     try {
       await api.deleteAccount();
       await logout();
@@ -97,69 +99,187 @@ const Profile = () => {
     }
   };
 
-  return (
-    <div className="flex min-h-screen flex-col bg-muted/30">
-      <Navbar />
-      <main className="container flex-1 py-8">
-        <h1 className="mb-8 text-3xl font-bold">Mon profil</h1>
+  const FormField = ({ label, children }: { label: string; children: React.ReactNode }) => (
+    <div className="space-y-1.5">
+      <Label className="text-sm">{label}</Label>
+      {children}
+    </div>
+  );
 
-        <div className="mx-auto max-w-2xl space-y-6">
+  return (
+    <div className="flex min-h-screen flex-col bg-background">
+      <Navbar />
+      <main className="flex-1 px-4 py-4 pb-24 md:container md:py-8 md:pb-8">
+        <PageHeader title="Mon profil" className="mb-6" />
+
+        <div className="mx-auto max-w-2xl space-y-4 md:space-y-6">
           {/* Profile info */}
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><User className="h-5 w-5 text-primary" /> Informations personnelles</CardTitle>
-              <CardDescription>Modifiez vos informations de profil</CardDescription>
+          <Card className="border-0 shadow-sm md:border">
+            <CardHeader className="px-4 pb-2 pt-4 md:px-6 md:pt-6">
+              <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                <User className="h-5 w-5 text-primary" /> Informations personnelles
+              </CardTitle>
+              <CardDescription className="text-sm">Modifiez vos informations de profil</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 pb-4 md:px-6 md:pb-6">
               <form onSubmit={handleProfile} className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2"><Label>Nom</Label><Input value={form.nom} onChange={e => setForm(p => ({ ...p, nom: e.target.value }))} required /></div>
-                  <div className="space-y-2"><Label>Prénom</Label><Input value={form.prenom} onChange={e => setForm(p => ({ ...p, prenom: e.target.value }))} /></div>
+                  <FormField label="Nom">
+                    <Input value={form.nom} onChange={e => setForm(p => ({ ...p, nom: e.target.value }))} required className="h-12 md:h-10" />
+                  </FormField>
+                  <FormField label="Prenom">
+                    <Input value={form.prenom} onChange={e => setForm(p => ({ ...p, prenom: e.target.value }))} className="h-12 md:h-10" />
+                  </FormField>
                 </div>
-                <div className="space-y-2"><Label>Email</Label><Input value={user?.email || ''} disabled className="bg-muted" /></div>
+                <FormField label="Email">
+                  <Input value={user?.email || ''} disabled className="h-12 bg-muted md:h-10" />
+                </FormField>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2"><Label>Téléphone</Label><Input value={form.telephone} onChange={e => setForm(p => ({ ...p, telephone: e.target.value }))} /></div>
-                  <div className="space-y-2"><Label>Date de naissance</Label><Input type="date" value={form.date_naissance} onChange={e => setForm(p => ({ ...p, date_naissance: e.target.value }))} /></div>
+                  <FormField label="Telephone">
+                    <Input value={form.telephone} onChange={e => setForm(p => ({ ...p, telephone: e.target.value }))} className="h-12 md:h-10" />
+                  </FormField>
+                  <FormField label="Date de naissance">
+                    <Input type="date" value={form.date_naissance} onChange={e => setForm(p => ({ ...p, date_naissance: e.target.value }))} className="h-12 md:h-10" />
+                  </FormField>
                 </div>
 
-                {/* Extra clinical fields for patients and professionals */}
                 {user?.role === 'user' && (
                   <>
-                    <div className="space-y-2"><Label>Groupe sanguin</Label><Input value={extra.groupe_sanguin} onChange={e => setExtra((p:any) => ({ ...p, groupe_sanguin: e.target.value }))} /></div>
-                    <div className="space-y-2"><Label>Allergies (séparées par des virgules)</Label><Input value={extra.allergies} onChange={e => setExtra((p:any) => ({ ...p, allergies: e.target.value }))} /></div>
-                    <div className="space-y-2"><Label>Antécédents médicaux</Label><Input value={extra.antecedents} onChange={e => setExtra((p:any) => ({ ...p, antecedents: e.target.value }))} /></div>
-                    <div className="space-y-2"><Label>Traitement en cours</Label><Input value={extra.traitement_en_cours} onChange={e => setExtra((p:any) => ({ ...p, traitement_en_cours: e.target.value }))} /></div>
-                    <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Contact urgence</Label><Input value={extra.contact_urgence} onChange={e => setExtra((p:any) => ({ ...p, contact_urgence: e.target.value }))} /></div><div className="space-y-2"><Label>Téléphone urgence</Label><Input value={extra.telephone_urgence} onChange={e => setExtra((p:any) => ({ ...p, telephone_urgence: e.target.value }))} /></div></div>
+                    <FormField label="Groupe sanguin">
+                      <Input value={extra.groupe_sanguin} onChange={e => setExtra((p:any) => ({ ...p, groupe_sanguin: e.target.value }))} className="h-12 md:h-10" />
+                    </FormField>
+                    <FormField label="Allergies (separees par des virgules)">
+                      <Input value={extra.allergies} onChange={e => setExtra((p:any) => ({ ...p, allergies: e.target.value }))} className="h-12 md:h-10" />
+                    </FormField>
+                    <FormField label="Antecedents medicaux">
+                      <Input value={extra.antecedents} onChange={e => setExtra((p:any) => ({ ...p, antecedents: e.target.value }))} className="h-12 md:h-10" />
+                    </FormField>
+                    <FormField label="Traitement en cours">
+                      <Input value={extra.traitement_en_cours} onChange={e => setExtra((p:any) => ({ ...p, traitement_en_cours: e.target.value }))} className="h-12 md:h-10" />
+                    </FormField>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <FormField label="Contact urgence">
+                        <Input value={extra.contact_urgence} onChange={e => setExtra((p:any) => ({ ...p, contact_urgence: e.target.value }))} className="h-12 md:h-10" />
+                      </FormField>
+                      <FormField label="Telephone urgence">
+                        <Input value={extra.telephone_urgence} onChange={e => setExtra((p:any) => ({ ...p, telephone_urgence: e.target.value }))} className="h-12 md:h-10" />
+                      </FormField>
+                    </div>
                   </>
                 )}
 
                 {user?.role === 'professional' && (
                   <>
-                    <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Spécialité</Label><Input value={extra.specialite} onChange={e => setExtra((p:any) => ({ ...p, specialite: e.target.value }))} /></div><div className="space-y-2"><Label>Sous-spécialité</Label><Input value={extra.sous_specialite} onChange={e => setExtra((p:any) => ({ ...p, sous_specialite: e.target.value }))} /></div></div>
-                    <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Numéro matricule</Label><Input value={extra.matricule} onChange={e => setExtra((p:any) => ({ ...p, matricule: e.target.value }))} /></div><div className="space-y-2"><Label>Numéro d'ordre</Label><Input value={extra.numero_ordre} onChange={e => setExtra((p:any) => ({ ...p, numero_ordre: e.target.value }))} /></div></div>
-                    <div className="space-y-2"><Label>Établissement</Label><Input value={extra.etablissement} onChange={e => setExtra((p:any) => ({ ...p, etablissement: e.target.value }))} /></div>
-                    <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Années d'expérience</Label><Input value={extra.annees_experience} onChange={e => setExtra((p:any) => ({ ...p, annees_experience: e.target.value }))} /></div><div className="space-y-2"><Label>Grade / Fonction</Label><Input value={extra.grade} onChange={e => setExtra((p:any) => ({ ...p, grade: e.target.value }))} /></div></div>
-                    <div className="space-y-2"><Label>Disponibilités (texte)</Label><Input value={extra.disponibilites_text} onChange={e => setExtra((p:any) => ({ ...p, disponibilites_text: e.target.value }))} /></div>
-                    <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Email professionnel</Label><Input value={extra.email_pro} onChange={e => setExtra((p:any) => ({ ...p, email_pro: e.target.value }))} /></div><div className="space-y-2"><Label>Téléphone professionnel</Label><Input value={extra.telephone_pro} onChange={e => setExtra((p:any) => ({ ...p, telephone_pro: e.target.value }))} /></div></div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <FormField label="Specialite">
+                        <Input value={extra.specialite} onChange={e => setExtra((p:any) => ({ ...p, specialite: e.target.value }))} className="h-12 md:h-10" />
+                      </FormField>
+                      <FormField label="Sous-specialite">
+                        <Input value={extra.sous_specialite} onChange={e => setExtra((p:any) => ({ ...p, sous_specialite: e.target.value }))} className="h-12 md:h-10" />
+                      </FormField>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <FormField label="Numero matricule">
+                        <Input value={extra.matricule} onChange={e => setExtra((p:any) => ({ ...p, matricule: e.target.value }))} className="h-12 md:h-10" />
+                      </FormField>
+                      <FormField label="Numero d'ordre">
+                        <Input value={extra.numero_ordre} onChange={e => setExtra((p:any) => ({ ...p, numero_ordre: e.target.value }))} className="h-12 md:h-10" />
+                      </FormField>
+                    </div>
+                    <FormField label="Etablissement">
+                      <Input value={extra.etablissement} onChange={e => setExtra((p:any) => ({ ...p, etablissement: e.target.value }))} className="h-12 md:h-10" />
+                    </FormField>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <FormField label="Annees d'experience">
+                        <Input value={extra.annees_experience} onChange={e => setExtra((p:any) => ({ ...p, annees_experience: e.target.value }))} className="h-12 md:h-10" />
+                      </FormField>
+                      <FormField label="Grade / Fonction">
+                        <Input value={extra.grade} onChange={e => setExtra((p:any) => ({ ...p, grade: e.target.value }))} className="h-12 md:h-10" />
+                      </FormField>
+                    </div>
+                    <FormField label="Disponibilites (texte)">
+                      <Input value={extra.disponibilites_text} onChange={e => setExtra((p:any) => ({ ...p, disponibilites_text: e.target.value }))} className="h-12 md:h-10" />
+                    </FormField>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <FormField label="Email professionnel">
+                        <Input value={extra.email_pro} onChange={e => setExtra((p:any) => ({ ...p, email_pro: e.target.value }))} className="h-12 md:h-10" />
+                      </FormField>
+                      <FormField label="Telephone professionnel">
+                        <Input value={extra.telephone_pro} onChange={e => setExtra((p:any) => ({ ...p, telephone_pro: e.target.value }))} className="h-12 md:h-10" />
+                      </FormField>
+                    </div>
                   </>
                 )}
-                <Button type="submit" className="rounded-xl" disabled={loadingProfile}>
+                <Button type="submit" className="h-12 w-full rounded-xl md:h-10 md:w-auto" disabled={loadingProfile}>
                   {loadingProfile ? 'Sauvegarde...' : 'Sauvegarder'}
                 </Button>
               </form>
             </CardContent>
           </Card>
 
-          {/* Change password */}
-          <Card className="shadow-sm">
+          {/* Quick actions for mobile */}
+          <div className="space-y-2 md:hidden">
+            <Sheet open={passwordSheetOpen} onOpenChange={setPasswordSheetOpen}>
+              <SheetTrigger asChild>
+                <button className="flex w-full items-center justify-between rounded-xl border bg-card p-4 text-left">
+                  <div className="flex items-center gap-3">
+                    <Lock className="h-5 w-5 text-primary" />
+                    <span className="font-medium">Changer le mot de passe</span>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="h-auto rounded-t-2xl">
+                <SheetHeader>
+                  <SheetTitle>Changer le mot de passe</SheetTitle>
+                </SheetHeader>
+                <form onSubmit={handlePassword} className="space-y-4 py-4">
+                  <FormField label="Mot de passe actuel">
+                    <Input type="password" value={passwords.current_password} onChange={e => setPasswords(p => ({ ...p, current_password: e.target.value }))} required className="h-12" />
+                  </FormField>
+                  <FormField label="Nouveau mot de passe">
+                    <Input type="password" value={passwords.new_password} onChange={e => setPasswords(p => ({ ...p, new_password: e.target.value }))} required minLength={8} className="h-12" />
+                  </FormField>
+                  <FormField label="Confirmer">
+                    <Input type="password" value={passwords.new_password_confirmation} onChange={e => setPasswords(p => ({ ...p, new_password_confirmation: e.target.value }))} required className="h-12" />
+                  </FormField>
+                  <Button type="submit" className="h-12 w-full rounded-xl" disabled={loadingPwd}>
+                    {loadingPwd ? 'Modification...' : 'Modifier le mot de passe'}
+                  </Button>
+                </form>
+              </SheetContent>
+            </Sheet>
+
+            <button
+              onClick={handleDelete}
+              className="flex w-full items-center justify-between rounded-xl border border-destructive/30 bg-card p-4 text-left text-destructive"
+            >
+              <div className="flex items-center gap-3">
+                <Trash2 className="h-5 w-5" />
+                <span className="font-medium">Supprimer mon compte</span>
+              </div>
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Desktop password change */}
+          <Card className="hidden shadow-sm md:block">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Lock className="h-5 w-5 text-primary" /> Changer le mot de passe</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5 text-primary" /> Changer le mot de passe
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handlePassword} className="space-y-4">
-                <div className="space-y-2"><Label>Mot de passe actuel</Label><Input type="password" value={passwords.current_password} onChange={e => setPasswords(p => ({ ...p, current_password: e.target.value }))} required /></div>
-                <div className="space-y-2"><Label>Nouveau mot de passe</Label><Input type="password" value={passwords.new_password} onChange={e => setPasswords(p => ({ ...p, new_password: e.target.value }))} required minLength={8} /></div>
-                <div className="space-y-2"><Label>Confirmer</Label><Input type="password" value={passwords.new_password_confirmation} onChange={e => setPasswords(p => ({ ...p, new_password_confirmation: e.target.value }))} required /></div>
+                <FormField label="Mot de passe actuel">
+                  <Input type="password" value={passwords.current_password} onChange={e => setPasswords(p => ({ ...p, current_password: e.target.value }))} required />
+                </FormField>
+                <FormField label="Nouveau mot de passe">
+                  <Input type="password" value={passwords.new_password} onChange={e => setPasswords(p => ({ ...p, new_password: e.target.value }))} required minLength={8} />
+                </FormField>
+                <FormField label="Confirmer">
+                  <Input type="password" value={passwords.new_password_confirmation} onChange={e => setPasswords(p => ({ ...p, new_password_confirmation: e.target.value }))} required />
+                </FormField>
                 <Button type="submit" className="rounded-xl" disabled={loadingPwd}>
                   {loadingPwd ? 'Modification...' : 'Modifier le mot de passe'}
                 </Button>
@@ -167,14 +287,16 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Danger zone */}
-          <Card className="border-destructive/30 shadow-sm">
+          {/* Desktop danger zone */}
+          <Card className="hidden border-destructive/30 shadow-sm md:block">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-destructive"><Trash2 className="h-5 w-5" /> Zone dangereuse</CardTitle>
-              <CardDescription>La suppression de votre compte est irréversible</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <Trash2 className="h-5 w-5" /> Zone dangereuse
+              </CardTitle>
+              <CardDescription>La suppression de votre compte est irreversible</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button variant="destructive" onClick={handleDelete} className="rounded-xl gap-2">
+              <Button variant="destructive" onClick={handleDelete} className="gap-2 rounded-xl">
                 <Trash2 className="h-4 w-4" /> Supprimer mon compte
               </Button>
             </CardContent>

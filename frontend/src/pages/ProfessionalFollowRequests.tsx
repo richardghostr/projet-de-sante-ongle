@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { PageHeader } from '@/components/PageHeader';
+import { Inbox } from 'lucide-react';
 
 const ProfessionalFollowRequests: React.FC = () => {
   const [requests, setRequests] = useState<any[]>([]);
@@ -15,7 +17,6 @@ const ProfessionalFollowRequests: React.FC = () => {
     setLoading(true);
     try {
       const res = await api.getProfessionalFollowRequests();
-      // API returns { requests: [...] } or { data: { requests: [...] } }
       const rows = res?.data?.requests ?? res?.requests ?? [];
       setRequests(rows);
     } catch (err: any) {
@@ -30,72 +31,73 @@ const ProfessionalFollowRequests: React.FC = () => {
   const handle = async (id: number, action: 'accept' | 'reject') => {
     try {
       await api.handleFollowRequestAction(id, action);
-      toast({ title: action === 'accept' ? 'Accepté' : 'Refusé' });
+      toast({ title: action === 'accept' ? 'Accepte' : 'Refuse' });
       load();
     } catch (err: any) {
       toast({ title: 'Erreur', description: err.message || 'Action impossible' });
     }
   };
 
+  const statusColor = (status: string) => {
+    const m: Record<string, string> = {
+      pending: 'bg-amber-50 text-amber-700',
+      accepted: 'bg-emerald-50 text-emerald-700',
+      rejected: 'bg-red-50 text-red-700',
+    };
+    return m[status] || 'bg-muted text-muted-foreground';
+  };
+
   return (
-    <div className="min-h-screen bg-surface-50">
+    <div className="flex min-h-dvh flex-col bg-muted/30">
       <Navbar />
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-semibold mb-4">Demandes de suivi reçues</h1>
+      <main className="container flex-1 py-4 pb-24 md:py-8 md:pb-8">
+        <PageHeader 
+          title="Demandes de suivi"
+          subtitle="Demandes recues de vos patients"
+        />
 
-        <div className="grid gap-4">
-          {loading && <div className="text-center py-8">Chargement...</div>}
-          {!loading && requests.length === 0 && (
-            <Card>
-              <CardContent>
-                <p className="text-muted-foreground">Aucune demande de suivi pour le moment.</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {requests.map((r) => (
-            <Card key={r.id} className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>Demande de {r.prenom} {r.nom}</span>
-                  <Badge variant="outline" className={r.status === 'pending' ? 'bg-amber-50 text-amber-700' : r.status === 'accepted' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}>{r.status}</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid sm:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Patient</p>
-                    <p className="font-medium">{r.prenom} {r.nom}</p>
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          </div>
+        ) : requests.length === 0 ? (
+          <Card className="shadow-sm">
+            <CardContent className="py-16 text-center">
+              <Inbox className="mx-auto h-14 w-14 text-muted-foreground/30" />
+              <p className="mt-4 text-muted-foreground">Aucune demande de suivi pour le moment.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {requests.map((r) => (
+              <Card key={r.id} className="shadow-sm">
+                <CardContent className="p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <span className="font-semibold">{r.prenom} {r.nom}</span>
+                        <Badge variant="outline" className={statusColor(r.status)}>{r.status}</Badge>
+                      </div>
+                      <div className="space-y-1 text-sm text-muted-foreground">
+                        <p>Analyse: {r.pathologie_label ?? r.analysis_uuid ?? '-'}</p>
+                        <p>Date: {new Date(r.created_at).toLocaleDateString('fr')}</p>
+                      </div>
+                      {r.message && (
+                        <p className="mt-2 line-clamp-2 rounded-lg bg-muted/50 p-2 text-sm">{r.message}</p>
+                      )}
+                    </div>
+                    {r.status === 'pending' && (
+                      <div className="flex w-full gap-2 sm:w-auto">
+                        <Button className="h-11 flex-1 sm:flex-none" onClick={() => handle(r.id, 'accept')}>Accepter</Button>
+                        <Button variant="outline" className="h-11 flex-1 sm:flex-none" onClick={() => handle(r.id, 'reject')}>Refuser</Button>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Analyse</p>
-                    <p className="font-medium">{r.pathologie_label ?? r.analysis_uuid ?? '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Date</p>
-                    <p className="font-medium">{new Date(r.created_at).toLocaleString('fr')}</p>
-                  </div>
-                </div>
-
-                {r.message && (
-                  <div className="mt-3">
-                    <p className="text-sm text-muted-foreground">Message du patient</p>
-                    <p className="mt-1 bg-muted/20 p-3 rounded">{r.message}</p>
-                  </div>
-                )}
-
-                <div className="mt-4 flex gap-2">
-                  {r.status === 'pending' && (
-                    <>
-                      <Button onClick={() => handle(r.id, 'accept')} className="bg-emerald-600 text-white">Accepter</Button>
-                      <Button variant="outline" onClick={() => handle(r.id, 'reject')}>Refuser</Button>
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );

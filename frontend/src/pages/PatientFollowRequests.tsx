@@ -4,7 +4,10 @@ import { Navbar } from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { PageHeader } from '@/components/PageHeader';
+import { Send, Inbox } from 'lucide-react';
 
 const PatientFollowRequests: React.FC = () => {
   const [requests, setRequests] = useState<any[]>([]);
@@ -32,86 +35,111 @@ const PatientFollowRequests: React.FC = () => {
   const respondInvitation = async (id: number, action: 'accept' | 'reject') => {
     try {
       await api.respondInvitation(id, action);
-      toast({ title: action === 'accept' ? 'Invitation acceptée' : 'Invitation refusée' });
+      toast({ title: action === 'accept' ? 'Invitation acceptee' : 'Invitation refusee' });
       load();
     } catch (err: any) {
       toast({ title: 'Erreur', description: err.message || 'Action impossible' });
     }
   };
 
-  return (
-    <div className="min-h-screen bg-surface-50">
-      <Navbar />
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-semibold mb-4">Mes demandes de suivi</h1>
+  const statusColor = (status: string) => {
+    const m: Record<string, string> = {
+      pending: 'bg-amber-50 text-amber-700',
+      accepted: 'bg-emerald-50 text-emerald-700',
+      rejected: 'bg-red-50 text-red-700',
+    };
+    return m[status] || 'bg-muted text-muted-foreground';
+  };
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle>Demandes envoyées</CardTitle>
+  return (
+    <div className="flex min-h-dvh flex-col bg-muted/30">
+      <Navbar />
+      <main className="container flex-1 py-4 pb-24 md:py-8 md:pb-8">
+        <PageHeader 
+          title="Mes demandes de suivi"
+          subtitle="Gerez vos demandes et invitations"
+        />
+
+        <Tabs defaultValue="requests" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="requests" className="flex items-center gap-2">
+              <Send className="h-4 w-4" />
+              <span className="hidden sm:inline">Demandes</span> envoyees
+            </TabsTrigger>
+            <TabsTrigger value="invitations" className="flex items-center gap-2">
+              <Inbox className="h-4 w-4" />
+              <span className="hidden sm:inline">Invitations</span> recues
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="requests">
+            <Card className="shadow-sm">
+              <CardHeader className="p-4 md:p-6">
+                <CardTitle className="text-base md:text-lg">Demandes envoyees</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
                 {loading ? (
-                  <div className="py-8 text-center">Chargement...</div>
+                  <div className="flex justify-center py-8">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  </div>
                 ) : requests.length === 0 ? (
-                  <p className="text-muted-foreground">Vous n'avez envoyé aucune demande de suivi.</p>
+                  <p className="py-8 text-center text-sm text-muted-foreground">Vous n&apos;avez envoye aucune demande de suivi.</p>
                 ) : (
                   <div className="space-y-3">
                     {requests.map(r => (
-                      <div key={r.id} className="rounded-lg border p-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">Professionnel: {r.professional_prenom} {r.professional_nom}</p>
-                            <p className="text-sm text-muted-foreground">Analyse: {r.analysis_uuid || r.pathologie_label || '—'}</p>
+                      <div key={r.id} className="rounded-xl border p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{r.professional_prenom} {r.professional_nom}</p>
+                            <p className="truncate text-sm text-muted-foreground">Analyse: {r.analysis_uuid || r.pathologie_label || '-'}</p>
                           </div>
-                          <div className="text-right">
-                            <Badge variant="outline" className={r.status === 'pending' ? 'bg-amber-50 text-amber-700' : r.status === 'accepted' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}>{r.status}</Badge>
-                          </div>
+                          <Badge variant="outline" className={statusColor(r.status)}>{r.status}</Badge>
                         </div>
-                        {r.message && <div className="mt-2 text-sm text-muted-foreground">{r.message}</div>}
-                        <div className="mt-3 text-xs text-muted-foreground">Envoyée: {new Date(r.created_at).toLocaleString('fr')}</div>
+                        {r.message && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{r.message}</p>}
+                        <p className="mt-3 text-xs text-muted-foreground">Envoyee: {new Date(r.created_at).toLocaleDateString('fr')}</p>
                       </div>
                     ))}
                   </div>
                 )}
               </CardContent>
             </Card>
-          </div>
+          </TabsContent>
 
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle>Invitations reçues</CardTitle>
+          <TabsContent value="invitations">
+            <Card className="shadow-sm">
+              <CardHeader className="p-4 md:p-6">
+                <CardTitle className="text-base md:text-lg">Invitations recues</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
                 {loading ? (
-                  <div className="py-8 text-center">Chargement...</div>
+                  <div className="flex justify-center py-8">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  </div>
                 ) : invitations.length === 0 ? (
-                  <p className="text-muted-foreground">Aucune invitation reçue.</p>
+                  <p className="py-8 text-center text-sm text-muted-foreground">Aucune invitation recue.</p>
                 ) : (
                   <div className="space-y-3">
                     {invitations.map(i => (
-                      <div key={i.id} className="rounded-lg border p-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">Professionnel: {i.prenom} {i.nom}</p>
-                            <p className="text-sm text-muted-foreground">Message: {i.message || '—'}</p>
+                      <div key={i.id} className="rounded-xl border p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium">{i.prenom} {i.nom}</p>
+                            <p className="line-clamp-2 text-sm text-muted-foreground">Message: {i.message || '-'}</p>
                           </div>
-                          <div className="flex gap-2">
-                            <Button onClick={() => respondInvitation(i.id, 'accept')} className="bg-emerald-600 text-white">Accepter</Button>
-                            <Button variant="outline" onClick={() => respondInvitation(i.id, 'reject')}>Refuser</Button>
+                          <div className="flex w-full gap-2 sm:w-auto">
+                            <Button className="h-11 flex-1 sm:flex-none" onClick={() => respondInvitation(i.id, 'accept')}>Accepter</Button>
+                            <Button variant="outline" className="h-11 flex-1 sm:flex-none" onClick={() => respondInvitation(i.id, 'reject')}>Refuser</Button>
                           </div>
                         </div>
-                        <div className="mt-3 text-xs text-muted-foreground">Reçue: {new Date(i.created_at).toLocaleString('fr')}</div>
+                        <p className="mt-3 text-xs text-muted-foreground">Recue: {new Date(i.created_at).toLocaleDateString('fr')}</p>
                       </div>
                     ))}
                   </div>
                 )}
               </CardContent>
             </Card>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

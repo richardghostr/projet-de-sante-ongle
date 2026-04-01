@@ -1,34 +1,31 @@
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { PageHeader } from '@/components/PageHeader';
 import { Shield, Brain, Heart, Users } from 'lucide-react';
 
 const About = () => (
-  <div className="flex min-h-screen flex-col">
+  <div className="flex min-h-screen flex-col bg-background">
     <Navbar />
-    <main className="flex-1">
-      <section className="container py-20">
-        <div className="mx-auto max-w-3xl text-center">
-          <h1 className="text-4xl font-bold">À propos d'UngueaHealth</h1>
-          <p className="mt-6 text-lg text-muted-foreground">
-            UngueaHealth est une plateforme innovante de diagnostic des pathologies unguéales utilisant
-            l'intelligence artificielle et le deep learning pour analyser les images d'ongles et fournir
-            des résultats fiables et rapides.
-          </p>
-        </div>
+    <main className="flex-1 pb-20 md:pb-0">
+      <section className="px-4 py-6 md:container md:py-16">
+        <PageHeader
+          title="A propos d'UngueaHealth"
+          subtitle="UngueaHealth est une plateforme innovante de diagnostic des pathologies ungueales utilisant l'intelligence artificielle et le deep learning pour analyser les images d'ongles et fournir des resultats fiables et rapides."
+        />
 
-        <div className="mx-auto mt-16 grid max-w-4xl gap-8 md:grid-cols-2">
+        <div className="mt-8 grid gap-4 md:mt-12 md:grid-cols-2 md:gap-6">
           {[
-            { icon: Brain, title: 'IA de pointe', desc: 'Nos modèles de deep learning sont entraînés sur des milliers d\'images cliniques pour une précision optimale.' },
-            { icon: Shield, title: 'Données sécurisées', desc: 'Vos données personnelles et médicales sont protégées par un chiffrement de bout en bout.' },
-            { icon: Heart, title: 'Mission santé', desc: 'Notre objectif est de rendre le dépistage précoce accessible à tous, partout dans le monde.' },
-            { icon: Users, title: 'Communauté', desc: 'Rejoignez des milliers d\'utilisateurs qui prennent soin de leur santé unguéale au quotidien.' },
+            { icon: Brain, title: 'IA de pointe', desc: "Nos modeles de deep learning sont entraines sur des milliers d'images cliniques pour une precision optimale." },
+            { icon: Shield, title: 'Donnees securisees', desc: 'Vos donnees personnelles et medicales sont protegees par un chiffrement de bout en bout.' },
+            { icon: Heart, title: 'Mission sante', desc: "Notre objectif est de rendre le depistage precoce accessible a tous, partout dans le monde." },
+            { icon: Users, title: 'Communaute', desc: "Rejoignez des milliers d'utilisateurs qui prennent soin de leur sante ungueale au quotidien." },
           ].map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="rounded-2xl border bg-card p-8 shadow-sm">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Icon className="h-6 w-6" />
+            <div key={title} className="rounded-xl border bg-card p-5 md:rounded-2xl md:p-8">
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary md:mb-4 md:h-12 md:w-12 md:rounded-xl">
+                <Icon className="h-5 w-5 md:h-6 md:w-6" />
               </div>
-              <h3 className="text-lg font-semibold">{title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{desc}</p>
+              <h3 className="text-base font-semibold md:text-lg">{title}</h3>
+              <p className="mt-1.5 text-sm text-muted-foreground md:mt-2">{desc}</p>
             </div>
           ))}
         </div>
