@@ -37,7 +37,7 @@ class AnalysisController {
         
         // Verifier la taille
         if ($file['size'] > $config['uploads']['max_size']) {
-            Response::error('Fichier trop volumineux (max 10MB)', 413);
+            Response::error('Fichier trop volumineux (max 5MB)', 413);
         }
         
         // Verifier le type MIME
@@ -46,7 +46,7 @@ class AnalysisController {
         finfo_close($finfo);
         
         if (!in_array($mimeType, $config['uploads']['allowed_types'])) {
-            Response::error('Type de fichier non autorise. Utilisez JPG, PNG ou WebP', 400);
+            Response::error('Type de fichier non autorise. Utilisez JPG ou PNG', 400);
         }
         
         // Verifier que c'est bien une image valide

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { Navbar } from "@/components/Navbar";
@@ -35,8 +35,8 @@ import {
   Share2,
 } from "lucide-react";
 
-const MAX_SIZE = 10 * 1024 * 1024;
-const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
+const MAX_SIZE = 5 * 1024 * 1024; // 5MB max as per spec
+const ALLOWED = ["image/jpeg", "image/png"]; // Accept only jpg/jpeg and png
 
 type AnalysisResult = {
   diagnostic?: string;
@@ -52,6 +52,12 @@ const Analyze = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
 
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -86,7 +92,9 @@ const Analyze = () => {
 
   const handleFile = useCallback(
     (f: File) => {
-      if (!ALLOWED.includes(f.type)) {
+      // Normalize mime type for jpeg variations
+      const mime = f.type || '';
+      if (!ALLOWED.includes(mime)) {
         toast({
           title: "Format non supporté",
           variant: "destructive",
@@ -96,7 +104,7 @@ const Analyze = () => {
 
       if (f.size > MAX_SIZE) {
         toast({
-          title: "Fichier trop volumineux (max 10MB)",
+          title: "Fichier trop volumineux (max 5MB)",
           variant: "destructive",
         });
         return;
@@ -123,6 +131,174 @@ const Analyze = () => {
     setStep("upload");
     setProgress(0);
     setResult(null);
+  };
+
+  // Attach stream to video element when camera modal opens
+  useEffect(() => {
+    if (cameraOpen && videoRef.current && stream) {
+      const v = videoRef.current;
+      if (v.srcObject !== stream) v.srcObject = stream;
+      v.muted = true;
+      v.playsInline = true;
+      // ensure attribute present for some browsers
+      v.setAttribute('autoplay', '');
+      v.setAttribute('muted', '');
+      try { v.play().catch(() => {}); } catch {}
+      // start preview loop drawing video -> canvas
+      const startPreview = () => {
+        const canvas = canvasRef.current;
+        if (!canvas || !v) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        const draw = () => {
+          if (v.videoWidth > 0 && v.videoHeight > 0) {
+            const width = v.videoWidth;
+            const height = v.videoHeight;
+            const dpr = window.devicePixelRatio || 1;
+            if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
+              canvas.width = Math.floor(width * dpr);
+              canvas.height = Math.floor(height * dpr);
+              canvas.style.width = `${width}px`;
+              canvas.style.height = `${height}px`;
+              ctx.scale(dpr, dpr);
+            }
+            try { ctx.drawImage(v, 0, 0, width, height); } catch (e) {}
+          }
+          rafRef.current = requestAnimationFrame(draw);
+        };
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        rafRef.current = requestAnimationFrame(draw);
+      };
+      startPreview();
+    }
+    return () => {
+      // cleanup when modal closes
+      if (!cameraOpen && stream) {
+        stream.getTracks().forEach((t) => t.stop());
+        setStream(null);
+      }
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [cameraOpen, stream]);
+
+  const captureFromVideo = async () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    // ensure we have valid video dimensions
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      // wait for metadata or playing event
+      await new Promise<void>((resolve) => {
+        const onLoaded = () => {
+          video.removeEventListener('loadedmetadata', onLoaded);
+          video.removeEventListener('playing', onLoaded);
+          resolve();
+        };
+        video.addEventListener('loadedmetadata', onLoaded);
+        video.addEventListener('playing', onLoaded);
+        // fallback timeout
+        setTimeout(() => {
+          try { video.removeEventListener('loadedmetadata', onLoaded); video.removeEventListener('playing', onLoaded); } catch {}
+          resolve();
+        }, 500);
+      });
+    }
+
+    // small delay to ensure a fresh frame is available
+    await new Promise((r) => setTimeout(r, 120));
+
+    // Diagnostic logs to inspect video/stream state before capture
+    try {
+      console.debug('captureFromVideo: videoState', {
+        readyState: video.readyState,
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight,
+        currentTime: video.currentTime,
+        paused: video.paused,
+      });
+      if (stream) {
+        console.debug('captureFromVideo: stream tracks', stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, id: t.id })));
+      }
+    } catch (e) {
+      console.debug('captureFromVideo: diagnostic logging failed', e);
+    }
+
+    // Prefer ImageCapture API when available (more reliable photo capture)
+    try {
+      const track = stream?.getVideoTracks()[0];
+      if (track && (window as any).ImageCapture) {
+        try {
+          const ImageCaptureCtor = (window as any).ImageCapture;
+          const ic = new ImageCaptureCtor(track);
+          const photoBlob = await ic.takePhoto();
+          if (photoBlob) {
+            const f = new File([photoBlob], `capture_${Date.now()}.${(photoBlob.type || 'image/jpeg').split('/')[1] || 'jpg'}`, { type: photoBlob.type || 'image/jpeg' });
+            handleFile(f);
+            setCameraOpen(false);
+            if (stream) { stream.getTracks().forEach((t) => t.stop()); setStream(null); }
+            return;
+          }
+        } catch (imgErr) {
+          console.debug('ImageCapture failed, falling back to canvas', imgErr);
+        }
+      }
+    } catch (e) {
+      console.debug('ImageCapture check failed', e);
+    }
+
+    // If we have an existing preview canvas (rendering the live frames), use it for capture
+    const previewCanvas = canvasRef.current;
+    if (previewCanvas) {
+      const blob: Blob | null = await new Promise((resolve) => previewCanvas.toBlob(resolve as BlobCallback, 'image/jpeg', 0.92));
+      if (blob) {
+        const f = new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        handleFile(f);
+        setCameraOpen(false);
+        if (stream) { stream.getTracks().forEach((t) => t.stop()); setStream(null); }
+        if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+        return;
+      }
+    }
+
+    // Fallback: draw from video into an offscreen canvas
+    const canvas = document.createElement('canvas');
+    const width = video.videoWidth || 1280;
+    const height = video.videoHeight || 720;
+    // scale for device pixel ratio to improve quality
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+    // draw current frame
+    try {
+      ctx.drawImage(video, 0, 0, width, height);
+    } catch (err) {
+      // drawing can fail if video not ready
+      console.error('captureFromVideo drawImage failed', err);
+      return;
+    }
+
+    // convert to blob
+    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve as BlobCallback, 'image/jpeg', 0.92));
+    if (!blob) return;
+
+    // create File object to reuse existing upload flow
+    const f = new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' });
+    // pass through validation and preview
+    handleFile(f);
+
+    // close modal and stop stream
+    setCameraOpen(false);
+    if (stream) {
+      stream.getTracks().forEach((t) => t.stop());
+      setStream(null);
+    }
   };
 
   const startAnalysis = async () => {
@@ -278,7 +454,12 @@ const Analyze = () => {
               <CardContent className="p-6">
                 {!preview ? (
                   <div
-                    onClick={() => inputRef.current?.click()}
+                    onClick={(e) => {
+                      // only trigger file picker when clicking the dropzone itself
+                      if (e.currentTarget === e.target) {
+                        inputRef.current?.click();
+                      }
+                    }}
                     onDragOver={(e) => {
                       e.preventDefault();
                       e.currentTarget.classList.add(
@@ -304,29 +485,110 @@ const Analyze = () => {
                     }}
                     className="flex cursor-pointer flex-col items-center gap-4 rounded-2xl border-2 border-dashed p-12 transition-colors hover:border-primary hover:bg-accent/50"
                   >
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                      <Upload className="h-8 w-8" />
-                    </div>
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                          <Upload className="h-8 w-8" />
+                        </div>
 
-                    <div className="text-center">
-                      <p className="font-medium">
-                        Glissez-déposez votre image ici
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        ou cliquez pour sélectionner (JPG, PNG, WebP — max 10MB)
-                      </p>
-                    </div>
+                        <div className="text-center">
+                          <p className="font-medium">Glissez-déposez votre image ici</p>
+                          <p className="text-sm text-muted-foreground">ou sélectionnez / prenez une photo (JPG, PNG — max 5MB)</p>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                          <Button variant="outline" onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }} className="gap-2">
+                            <Upload className="h-4 w-4" /> Importer une image
+                          </Button>
+                          <Button onClick={async (e) => {
+                              e.stopPropagation();
+                              // Try opening native getUserMedia (desktop browsers / webcams)
+                              if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                                try {
+                                  const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: 'environment' } } });
+                                  // if succeeded, open modal with stream
+                                  setStream(s);
+                                  setCameraOpen(true);
+                                  return;
+                                } catch (err) {
+                                  // try a more permissive constraint (some devices don't support exact)
+                                  try {
+                                    const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                                    setStream(s);
+                                    setCameraOpen(true);
+                                    return;
+                                  } catch (_err) {
+                                    // fallback to file input (mobile or no webcam)
+                                    cameraInputRef.current?.click();
+                                    return;
+                                  }
+                                }
+                              } else {
+                                // no mediaDevices: fallback to file input (mobile will open camera)
+                                cameraInputRef.current?.click();
+                              }
+                            }} className="gap-2">
+                            <Camera className="h-4 w-4" /> Prendre une photo
+                          </Button>
+                        </div>
+
+                        <p className="mt-3 text-sm text-muted-foreground">Prenez une photo nette, bien éclairée, centrée sur l’ongle.</p>
+                      </div>
                     <input
                       ref={inputRef}
                       type="file"
-                      accept="image/jpeg,image/png,image/webp"
+                      accept="image/jpeg,image/png"
                       className="hidden"
-                      aria-label="Uploader une image d'ongle" // Add this
+                      aria-label="Uploader une image d'ongle"
                       onChange={(e) => {
                         const selectedFile = e.target.files?.[0];
                         if (selectedFile) handleFile(selectedFile);
                       }}
                     />
+
+                    {/* Camera input: uses capture to hint camera on mobile */}
+                    <input
+                      ref={(el) => (cameraInputRef.current = el)}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      aria-label="Prendre une photo d'ongle"
+                      onChange={(e) => {
+                        const selectedFile = e.target.files?.[0];
+                        if (selectedFile) handleFile(selectedFile);
+                      }}
+                    />
+                    {/* Webcam modal for desktop */}
+                    <Dialog open={cameraOpen} onOpenChange={(open) => {
+                      setCameraOpen(open);
+                      if (!open && stream) {
+                        stream.getTracks().forEach((t) => t.stop());
+                        setStream(null);
+                      }
+                    }}>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Prendre une photo</DialogTitle>
+                          <DialogDescription>
+                            Utilisez votre webcam pour capturer l'image. Assurez-vous que l'ongle est net et bien eclairé.
+                          </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="flex flex-col items-center gap-4">
+                          <video ref={videoRef} className="hidden" playsInline autoPlay muted />
+                          <canvas ref={canvasRef} className="w-full max-w-lg rounded-md bg-black" />
+
+                          <div className="flex gap-2">
+                            <Button onClick={captureFromVideo} className="gap-2">
+                              <Camera className="h-4 w-4" /> Capturer
+                            </Button>
+                            <Button variant="outline" onClick={() => { setCameraOpen(false); if (stream) { stream.getTracks().forEach((t) => t.stop()); setStream(null); } }}>
+                              Annuler
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 ) : (
                   <div className="space-y-4">

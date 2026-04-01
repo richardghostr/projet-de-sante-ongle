@@ -55,9 +55,9 @@ $config = [
     ],
     'uploads' => [
         'dir' => __DIR__ . '/../storage/uploads',
-        'max_size' => 10 * 1024 * 1024, // 10MB
-        'allowed_types' => ['image/jpeg', 'image/png', 'image/webp'],
-        'allowed_extensions' => ['jpg', 'jpeg', 'png', 'webp'],
+        'max_size' => 5 * 1024 * 1024, // 5MB per new spec
+        'allowed_types' => ['image/jpeg', 'image/png'],
+        'allowed_extensions' => ['jpg', 'jpeg', 'png'],
     ],
     'jwt' => [
         'secret' => getenv('JWT_SECRET') ?: 'jwt_secret_key_change_in_production',
