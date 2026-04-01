@@ -39,7 +39,7 @@ $config = [
         'env' => getenv('APP_ENV') ?: 'development',
         'debug' => getenv('APP_DEBUG') === 'true',
         'url' => getenv('APP_URL') ?: 'http://localhost:8000',
-        'secret_key' => getenv('APP_SECRET') ?: 'unguealhealth_secret_key_change_in_production',
+        'secret_key' => getenv('APP_SECRET') ?: null,
     ],
     'db' => [
         'host' => getenv('DB_HOST') ?: 'db',
@@ -60,7 +60,7 @@ $config = [
         'allowed_extensions' => ['jpg', 'jpeg', 'png'],
     ],
     'jwt' => [
-        'secret' => getenv('JWT_SECRET') ?: 'jwt_secret_key_change_in_production',
+        'secret' => getenv('JWT_SECRET') ?: null,
         'expiry' => 86400 * 7, // 7 jours
         'algorithm' => 'HS256',
     ],
@@ -202,6 +202,19 @@ try {
 } catch (Exception $e) {
     // Non-fatal: log and continue
     Logger::warning('bootstrap: could not ensure professional_notes.read_at', ['error' => $e->getMessage()]);
+}
+
+// Enforce critical secrets in non-development environments
+if (($config['app']['env'] ?? 'development') !== 'development') {
+    if (empty($config['app']['secret_key'])) {
+        Logger::critical('Missing APP_SECRET in non-development environment');
+        // Halt startup
+        die('Configuration error: APP_SECRET must be set in production');
+    }
+    if (empty($config['jwt']['secret'])) {
+        Logger::critical('Missing JWT_SECRET in non-development environment');
+        die('Configuration error: JWT_SECRET must be set in production');
+    }
 }
 
 // Ensure extended profile columns and professional_documents table exist

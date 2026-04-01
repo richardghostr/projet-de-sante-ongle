@@ -127,9 +127,13 @@ class AnalysisController {
     public static function analyze() {
         global $config;
         
-        // Debug: log incoming request body and POST for troubleshooting
-        $rawBody = file_get_contents('php://input');
-        Logger::info('Analyze endpoint called', ['raw_body' => $rawBody, 'post' => $_POST]);
+        // Only log verbose debug info when app is in debug mode
+        try {
+            if (!empty($GLOBALS['config']['app']['debug'])) {
+                $rawBody = file_get_contents('php://input');
+                Logger::info('Analyze endpoint called', ['raw_body' => $rawBody, 'post' => $_POST]);
+            }
+        } catch (Exception $e) {}
 
         $data = getRequestBody();
         
@@ -246,6 +250,139 @@ class AnalysisController {
             'model_version' => $iaResult['model_version'] ?? 'v2.0'
         ], 'Analyse terminee');
     }
+
+    /**
+     * POST /api/analyze-complete - Upload + analyze in a single request
+     * Accepts multipart/form-data with `image` file and optional fields (doigt_concerne, main_pied, notes)
+     */
+    public static function analyzeComplete() {
+        global $config;
+
+        $user = Auth::getCurrentUser();
+        $userId = $user ? $user['id'] : null;
+
+        if (!isset($_FILES['image']) || $_FILES['image']['error'] === UPLOAD_ERR_NO_FILE) {
+            Response::error('Aucune image fournie', 400);
+        }
+
+        $file = $_FILES['image'];
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            Response::error('Erreur lors de l\'upload de l\'image', 400);
+        }
+
+        if ($file['size'] > $config['uploads']['max_size']) {
+            Response::error('Fichier trop volumineux (max 5MB)', 413);
+        }
+
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mimeType = finfo_file($finfo, $file['tmp_name']);
+        finfo_close($finfo);
+
+        if (!in_array($mimeType, $config['uploads']['allowed_types'])) {
+            Response::error('Type de fichier non autorise. Utilisez JPG ou PNG', 400);
+        }
+
+        $imageInfo = getimagesize($file['tmp_name']);
+        if (!$imageInfo) {
+            Response::error('Le fichier n\'est pas une image valide', 400);
+        }
+
+        $uuid = generateUUID();
+        $extension = match($mimeType) {
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            default => 'jpg'
+        };
+        $filename = "img_{$uuid}.{$extension}";
+        $destPath = $config['uploads']['dir'] . '/' . $filename;
+
+        if (!move_uploaded_file($file['tmp_name'], $destPath)) {
+            Logger::error('Failed to move uploaded file (analyzeComplete)', ['file' => $filename]);
+            Response::serverError('Erreur lors de la sauvegarde du fichier');
+        }
+
+        $thumbnailPath = self::createThumbnail($destPath, $uuid);
+
+        $analysisData = [
+            'uuid' => $uuid,
+            'user_id' => $userId,
+            'image_path' => '/storage/uploads/' . $filename,
+            'image_original_name' => sanitizeFilename($file['name']),
+            'image_size' => $file['size'],
+            'image_mime_type' => $mimeType,
+            'thumbnail_path' => $thumbnailPath ? '/storage/thumbnails/' . basename($thumbnailPath) : null,
+            'status' => 'pending',
+            'ip_address' => getClientIp(),
+            'user_agent' => getUserAgent(),
+            'date_analyse' => date('Y-m-d H:i:s'),
+        ];
+
+        if (isset($_POST['doigt_concerne'])) $analysisData['doigt_concerne'] = $_POST['doigt_concerne'];
+        if (isset($_POST['main_pied'])) $analysisData['main_pied'] = $_POST['main_pied'];
+        if (isset($_POST['notes'])) $analysisData['notes_utilisateur'] = substr($_POST['notes'], 0, 1000);
+
+        $analysisId = self::saveAnalysis($analysisData);
+
+        // Immediately run analysis (delegate to IA service)
+        $imagePath = __DIR__ . '/../..' . $analysisData['image_path'];
+        if (!file_exists($imagePath)) {
+            self::updateAnalysisStatus($analysisId, 'failed', 'Image introuvable');
+            Response::error('Image introuvable sur le serveur', 404);
+        }
+
+        $startTime = microtime(true);
+        $iaResult = self::callIAService($imagePath);
+        $processingTime = round((microtime(true) - $startTime) * 1000);
+
+        if (!$iaResult || isset($iaResult['error'])) {
+            self::updateAnalysisStatus($analysisId, 'failed', $iaResult['error'] ?? 'Erreur du service IA');
+            Response::error('Erreur lors de l\'analyse IA', 502);
+        }
+
+        $pathologieLabel = $iaResult['prediction']['label'] ?? $iaResult['predictions'][0]['label'] ?? 'Inconnu';
+        $scoreConfiance = $iaResult['prediction']['probability'] ?? $iaResult['predictions'][0]['probability'] ?? $iaResult['score'] ?? 0;
+        $niveauRisque = self::determineRiskLevel($pathologieLabel, $scoreConfiance);
+        $recommandationConsultation = in_array($niveauRisque, ['eleve', 'critique']) ? 1 : 0;
+
+        $pathologieId = self::getPathologieId($pathologieLabel);
+
+        $updateData = [
+            'result_json' => json_encode($iaResult, JSON_UNESCAPED_UNICODE),
+            'pathologie_detectee_id' => $pathologieId,
+            'pathologie_label' => $pathologieLabel,
+            'score_confiance' => round($scoreConfiance, 4),
+            'niveau_risque' => $niveauRisque,
+            'recommandation_consultation' => $recommandationConsultation,
+            'model_version' => $iaResult['model_version'] ?? 'v2.0',
+            'processing_time_ms' => $processingTime,
+            'heatmap_path' => $iaResult['heatmap_url'] ?? null,
+            'status' => 'completed',
+            'completed_at' => date('Y-m-d H:i:s'),
+        ];
+
+        self::updateAnalysis($analysisId, $updateData);
+
+        $conseils = self::generateConseils($analysisId, $pathologieLabel, $niveauRisque, $pathologieId);
+
+        Logger::info('Analyze complete (single call)', ['uuid' => $uuid, 'analysis_id' => $analysisId]);
+
+        Response::success([
+            'analysis_id' => $analysisId,
+            'uuid' => $uuid,
+            'status' => 'completed',
+            'result' => [
+                'pathologie' => $pathologieLabel,
+                'score_confiance' => round($scoreConfiance, 2),
+                'niveau_risque' => $niveauRisque,
+                'predictions' => $iaResult['predictions'] ?? [],
+                'heatmap_url' => $iaResult['heatmap_url'] ?? null
+            ],
+            'conseils' => $conseils,
+            'processing_time_ms' => $processingTime,
+            'model_version' => $iaResult['model_version'] ?? 'v2.0'
+        ], 'Analyse terminee (complete)');
+    }
     
     /**
      * GET /api/analysis/:id - Obtenir une analyse specifique
@@ -278,27 +415,56 @@ class AnalysisController {
         }
         
         $conseils = self::getConseils($analysis['id'] ?? $analysis['uuid']);
-        
+
+        // Build the response and filter sensitive fields depending on caller role
+        $responseAnalysis = [
+            'id' => $analysis['id'] ?? $analysis['uuid'],
+            'uuid' => $analysis['uuid'],
+            'image_url' => $analysis['image_path'],
+            'thumbnail_url' => $analysis['thumbnail_path'],
+            'status' => $analysis['status'],
+            'pathologie' => $analysis['pathologie_label'],
+            'score_confiance' => (float)($analysis['score_confiance'] ?? 0),
+            'niveau_risque' => $analysis['niveau_risque'],
+            'recommandation_consultation' => (bool)($analysis['recommandation_consultation'] ?? false),
+            'result' => json_decode($analysis['result_json'] ?? '{}', true),
+            'doigt_concerne' => $analysis['doigt_concerne'] ?? null,
+            'main_pied' => $analysis['main_pied'] ?? null,
+            'notes' => $analysis['notes_utilisateur'] ?? null,
+            'processing_time_ms' => $analysis['processing_time_ms'],
+            'date_analyse' => $analysis['date_analyse'],
+            'completed_at' => $analysis['completed_at'] ?? null
+        ];
+
+        // Include model_version and heatmap only for owner or authorized professionals/admins
+        $callerIsOwner = isset($analysis['user_id']) && $analysis['user_id'] == ($user['id'] ?? null);
+        $callerRole = $user['role'] ?? null;
+        $allowedFullView = $callerIsOwner;
+        if ($user && isset($user['role'])) {
+            if ($user['role'] === 'admin') {
+                $allowedFullView = $allowedFullView || ((int)($analysis['visibility_status'] ?? 0) === 1);
+            }
+            if ($user['role'] === 'professional') {
+                $link = db()->fetchOne('SELECT id FROM professional_patient_links WHERE professional_id = ? AND patient_id = ? AND status = "active"', [$user['id'], $analysis['user_id']]);
+                if ($link && ((int)($analysis['visibility_status'] ?? 0) === 1)) $allowedFullView = true;
+            }
+        }
+
+        if ($allowedFullView) {
+            $responseAnalysis['model_version'] = $analysis['model_version'];
+            // result might include heatmap_url
+            // keep as-is
+        } else {
+            // Remove heatmap url if present
+            if (isset($responseAnalysis['result']['heatmap_url'])) {
+                unset($responseAnalysis['result']['heatmap_url']);
+            }
+            // Do not expose model version
+            $responseAnalysis['model_version'] = null;
+        }
+
         Response::success([
-            'analysis' => [
-                'id' => $analysis['id'] ?? $analysis['uuid'],
-                'uuid' => $analysis['uuid'],
-                'image_url' => $analysis['image_path'],
-                'thumbnail_url' => $analysis['thumbnail_path'],
-                'status' => $analysis['status'],
-                'pathologie' => $analysis['pathologie_label'],
-                'score_confiance' => (float)($analysis['score_confiance'] ?? 0),
-                'niveau_risque' => $analysis['niveau_risque'],
-                'recommandation_consultation' => (bool)($analysis['recommandation_consultation'] ?? false),
-                'result' => json_decode($analysis['result_json'] ?? '{}', true),
-                'doigt_concerne' => $analysis['doigt_concerne'] ?? null,
-                'main_pied' => $analysis['main_pied'] ?? null,
-                'notes' => $analysis['notes_utilisateur'] ?? null,
-                'model_version' => $analysis['model_version'],
-                'processing_time_ms' => $analysis['processing_time_ms'],
-                'date_analyse' => $analysis['date_analyse'],
-                'completed_at' => $analysis['completed_at'] ?? null
-            ],
+            'analysis' => $responseAnalysis,
             'conseils' => $conseils
         ]);
     }

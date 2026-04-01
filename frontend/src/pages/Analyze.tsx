@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useMutation } from '@tanstack/react-query';
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
+import { AnalysisResult, UploadResponse } from '@/types';
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -38,15 +40,7 @@ import {
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB max as per spec
 const ALLOWED = ["image/jpeg", "image/png"]; // Accept only jpg/jpeg and png
 
-type AnalysisResult = {
-  diagnostic?: string;
-  conseils?: Array<{ texte_conseil?: string } | string>;
-  result?: {
-    pathologie?: string;
-    score_confiance?: number;
-    niveau_risque?: string;
-  };
-};
+// using shared `AnalysisResult` from `src/types`
 
 const Analyze = () => {
   const { toast } = useToast();
@@ -70,25 +64,7 @@ const Analyze = () => {
   const [treatmentName, setTreatmentName] = useState("");
   const [treatmentNotes, setTreatmentNotes] = useState("");
   const [isCreatingTreatment, setIsCreatingTreatment] = useState(false);
-  // 1. Define the interface at the top of your file
-  interface UploadResponse {
-    analysis_id?: string;
-    id?: string;
-    uuid?: string;
-    data?: {
-      analysis_id?: string;
-      id?: string;
-      uuid?: string;
-      data?: {
-        analysis_id?: string;
-      };
-    };
-  }
-
-  // 2. Use it in your useState
-  const [uploadResponse, setUploadResponse] = useState<UploadResponse | null>(
-    null,
-  );
+  const [uploadResponse, setUploadResponse] = useState<UploadResponse | null>(null);
 
   const handleFile = useCallback(
     (f: File) => {
@@ -211,18 +187,20 @@ const Analyze = () => {
 
     // Diagnostic logs to inspect video/stream state before capture
     try {
-      console.debug('captureFromVideo: videoState', {
-        readyState: video.readyState,
-        videoWidth: video.videoWidth,
-        videoHeight: video.videoHeight,
-        currentTime: video.currentTime,
-        paused: video.paused,
-      });
-      if (stream) {
-        console.debug('captureFromVideo: stream tracks', stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, id: t.id })));
+      if (import.meta.env.DEV) {
+        console.debug('captureFromVideo: videoState', {
+          readyState: video.readyState,
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight,
+          currentTime: video.currentTime,
+          paused: video.paused,
+        });
+        if (stream) {
+          console.debug('captureFromVideo: stream tracks', stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, id: t.id })));
+        }
       }
     } catch (e) {
-      console.debug('captureFromVideo: diagnostic logging failed', e);
+      if (import.meta.env.DEV) console.debug('captureFromVideo: diagnostic logging failed', e);
     }
 
     // Prefer ImageCapture API when available (more reliable photo capture)
@@ -241,11 +219,11 @@ const Analyze = () => {
             return;
           }
         } catch (imgErr) {
-          console.debug('ImageCapture failed, falling back to canvas', imgErr);
+          if (import.meta.env.DEV) console.debug('ImageCapture failed, falling back to canvas', imgErr);
         }
       }
     } catch (e) {
-      console.debug('ImageCapture check failed', e);
+      if (import.meta.env.DEV) console.debug('ImageCapture check failed', e);
     }
 
     // If we have an existing preview canvas (rendering the live frames), use it for capture
@@ -311,57 +289,38 @@ const Analyze = () => {
       setProgress((prev) => Math.min(prev + Math.random() * 12, 90));
     }, 300);
 
-    try {
-      const uploadRes = await api.uploadImage(file);
-      setUploadResponse(uploadRes);
-
-      const analysisId =
-        uploadRes?.analysis_id ||
-        uploadRes?.data?.analysis_id ||
-        uploadRes?.data?.data?.analysis_id ||
-        uploadRes?.id ||
-        uploadRes?.data?.id ||
-        uploadRes?.uuid ||
-        uploadRes?.data?.uuid ||
-        null;
-
-      if (!analysisId) {
+    analyzeMutation.mutate(file, {
+      onSuccess(data) {
         clearInterval(progressInterval);
-
-        toast({
-          title: "Erreur",
-          description: "Impossible de récupérer l'identifiant d'analyse.",
-          variant: "destructive",
+        setProgress(100);
+        // normalize response shape
+        const payload = data?.data ?? data;
+        setResult(payload?.result || payload);
+        setUploadResponse({
+          analysis_id: payload?.analysis_id || payload?.id,
+          uuid: payload?.uuid,
+          data: payload,
         });
-
-        setStep("upload");
-        return;
+        setTimeout(() => {
+          setStep("results");
+        }, 500);
+      },
+      onError(err: any) {
+        clearInterval(progressInterval);
+        const message = err?.message || 'Une erreur inconnue est survenue';
+        toast({ title: 'Erreur', description: message, variant: 'destructive' });
+        setStep('upload');
       }
-
-      const analysisRes = await api.analyzeImage(analysisId);
-
-      clearInterval(progressInterval);
-      setProgress(100);
-
-      setTimeout(() => {
-        setResult(analysisRes.data || analysisRes);
-        setStep("results");
-      }, 500);
-    } catch (err: unknown) {
-      clearInterval(progressInterval);
-
-      const message =
-        err instanceof Error ? err.message : "Une erreur inconnue est survenue";
-
-      toast({
-        title: "Erreur",
-        description: message,
-        variant: "destructive",
-      });
-
-      setStep("upload");
-    }
+    });
   };
+
+  const analyzeMutation = useMutation({
+    mutationFn: (file: File) => api.analyzeComplete(file),
+  });
+
+  const createTreatmentMutation = useMutation({
+    mutationFn: (data: any) => api.createTreatment(data),
+  });
 
   const riskColor = (risk: string) => {
     const map: Record<string, string> = {
@@ -726,9 +685,22 @@ const Analyze = () => {
                     {/* Start Treatment Tracking */}
                     <Card 
                         className="cursor-pointer border-2 border-transparent transition-all hover:border-primary hover:shadow-md min-h-[80px]"
-                      onClick={() => {
-                        setTreatmentName(result.result?.pathologie || result.diagnostic || "Mon traitement");
-                        setShowTreatmentDialog(true);
+                      onClick={async () => {
+                        const title = result.result?.pathologie || result.diagnostic || "Mon traitement";
+                        try {
+                          const resp = await createTreatmentMutation.mutateAsync({
+                            titre: title,
+                            description: '',
+                            analysis_uuid: uploadResponse?.uuid || (result && (result as any).uuid) || undefined,
+                            doigt_concerne: 'index',
+                            main_pied: 'main_droite',
+                            frequence_suivi: 'weekly'
+                          });
+                          const newUuid = resp?.data?.uuid || resp?.uuid;
+                          navigate(`/treatments/${newUuid}`);
+                        } catch (e: any) {
+                          toast({ title: 'Erreur', description: e?.message || 'Impossible de creer le suivi', variant: 'destructive' });
+                        }
                       }}
                     >
                       <CardContent className="flex items-start gap-4 p-4">

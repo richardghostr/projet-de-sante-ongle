@@ -70,6 +70,12 @@ try {
         require_once __DIR__ . '/controllers/AnalysisController.php';
         AnalysisController::analyze();
     }
+
+    // Unified upload + analyze endpoint
+    elseif ($uri === '/analyze-complete' && $method === 'POST') {
+        require_once __DIR__ . '/controllers/AnalysisController.php';
+        AnalysisController::analyzeComplete();
+    }
     
     // Alias pour compatibilite
     elseif ($uri === '/analyze-image' && $method === 'POST') {

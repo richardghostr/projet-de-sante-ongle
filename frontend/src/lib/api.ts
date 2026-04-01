@@ -96,6 +96,16 @@ class ApiClient {
     formData.append('image', file);
     return this.request('/upload-image', { method: 'POST', body: formData });
   }
+  analyzeComplete(file: File, extra?: Record<string, any>) {
+    const formData = new FormData();
+    formData.append('image', file);
+    if (extra) {
+      Object.keys(extra).forEach((k) => {
+        if (extra[k] !== undefined && extra[k] !== null) formData.append(k, String(extra[k]));
+      });
+    }
+    return this.request('/analyze-complete', { method: 'POST', body: formData });
+  }
   analyzeImage(analysisId: string) {
     return this.request('/analyze-image', { method: 'POST', body: JSON.stringify({ analysis_id: analysisId }) });
   }
