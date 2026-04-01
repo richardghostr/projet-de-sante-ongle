@@ -161,10 +161,10 @@ const AdminValidationProfessionals = () => {
                       <div>
                         <Label>Commentaire admin (optionnel)</Label>
                         <Input 
-                          value={selectedComment} 
-                          onChange={e => setSelectedComment(e.target.value)} 
-                          className="mt-1 h-12 text-base"
-                        />
+                              value={selectedComment} 
+                              onChange={e => setSelectedComment(e.target.value)} 
+                              className="mt-1 h-11 text-base"
+                            />
                       </div>
                     )}
 

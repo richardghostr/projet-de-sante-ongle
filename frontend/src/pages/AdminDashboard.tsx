@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Navbar } from '@/components/Navbar';
+import { PageHeader } from '@/components/PageHeader';
+import { StatCard } from '@/components/StatCard';
+import { MobileListItem } from '@/components/MobileListItem';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -151,39 +154,18 @@ const AdminDashboard = () => {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted/30">
+    <div className="flex min-h-dvh flex-col bg-muted/30">
       <Navbar />
-      <main className="container flex-1 py-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <Shield className="h-4 w-4" />
-            <span>Administration</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">Tableau de bord Admin</h1>
-            <div>
-              <Button asChild>
-                <Link to="/admin/documents">Valider les documents</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
+      <main className="container flex-1 py-4 pb-24 md:py-8 md:pb-8">
+        <PageHeader
+          title="Tableau de bord Admin"
+          subtitle="Gestion et supervision de la plateforme"
+        />
 
         {/* Stats */}
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
           {statCards.map(({ label, value, sub, icon: Icon, color }) => (
-            <Card key={label} className="shadow-sm">
-              <CardContent className="flex items-center gap-4 p-5">
-                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted ${color}`}>
-                  <Icon className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">{label}</p>
-                  <p className="text-2xl font-bold tabular-nums">{value}</p>
-                  <p className="text-xs text-muted-foreground">{sub}</p>
-                </div>
-              </CardContent>
-            </Card>
+            <StatCard key={label} label={label} value={value} icon={Icon} color={color} />
           ))}
         </div>
 
@@ -200,79 +182,145 @@ const AdminDashboard = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="users" className="gap-2"><Users className="h-4 w-4" /> Utilisateurs</TabsTrigger>
-            <TabsTrigger value="analyses" className="gap-2"><Activity className="h-4 w-4" /> Analyses</TabsTrigger>
-            <TabsTrigger value="feedback" className="gap-2"><MessageSquare className="h-4 w-4" /> Feedbacks</TabsTrigger>
-            <TabsTrigger value="logs" className="gap-2"><FileText className="h-4 w-4" /> Logs</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="users" className="gap-1.5 text-xs sm:text-sm">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Utilisateurs</span>
+              <span className="sm:hidden">Users</span>
+            </TabsTrigger>
+            <TabsTrigger value="analyses" className="gap-1.5 text-xs sm:text-sm">
+              <Activity className="h-4 w-4" />
+              <span className="hidden sm:inline">Analyses</span>
+              <span className="sm:hidden">IA</span>
+            </TabsTrigger>
+            <TabsTrigger value="feedback" className="gap-1.5 text-xs sm:text-sm">
+              <MessageSquare className="h-4 w-4" />
+              <span className="hidden sm:inline">Feedbacks</span>
+              <span className="sm:hidden">Avis</span>
+            </TabsTrigger>
+            <TabsTrigger value="logs" className="gap-1.5 text-xs sm:text-sm">
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline">Logs</span>
+              <span className="sm:hidden">Logs</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
             <Card className="shadow-sm">
               <CardHeader>
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <CardTitle>Gestion des utilisateurs</CardTitle>
-                  <div className="flex flex-wrap gap-2">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        placeholder="Rechercher..."
-                        className="pl-9 w-48"
-                        value={usersFilter.search}
-                        onChange={(e) => setUsersFilter(f => ({ ...f, search: e.target.value }))}
-                      />
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <CardTitle>Gestion des utilisateurs</CardTitle>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                      <div className="relative w-full sm:w-48">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          placeholder="Rechercher..."
+                          className="h-11 pl-9 text-base w-full sm:w-48"
+                          value={usersFilter.search}
+                          onChange={(e) => setUsersFilter(f => ({ ...f, search: e.target.value }))}
+                        />
+                      </div>
+                      <Select value={usersFilter.role} onValueChange={(v) => setUsersFilter(f => ({ ...f, role: v === 'all' ? '' : v }))}>
+                        <SelectTrigger className="h-11 w-full text-base sm:w-36">
+                          <SelectValue placeholder="Role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Tous les roles</SelectItem>
+                          <SelectItem value="user">Utilisateur</SelectItem>
+                          <SelectItem value="student">Etudiant</SelectItem>
+                          <SelectItem value="professional">Professionnel</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={usersFilter.status} onValueChange={(v) => setUsersFilter(f => ({ ...f, status: v === 'all' ? '' : v }))}>
+                        <SelectTrigger className="h-11 w-full text-base sm:w-36">
+                          <SelectValue placeholder="Statut" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Tous les statuts</SelectItem>
+                          <SelectItem value="active">Actif</SelectItem>
+                          <SelectItem value="inactive">Inactif</SelectItem>
+                          <SelectItem value="suspended">Suspendu</SelectItem>
+                          <SelectItem value="pending">En attente</SelectItem>
+                          <SelectItem value="approved">Approuvé</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <Select value={usersFilter.role} onValueChange={(v) => setUsersFilter(f => ({ ...f, role: v === 'all' ? '' : v }))}>
-                      <SelectTrigger className="w-36">
-                        <SelectValue placeholder="Role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Tous les roles</SelectItem>
-                        <SelectItem value="user">Utilisateur</SelectItem>
-                        <SelectItem value="student">Etudiant</SelectItem>
-                        <SelectItem value="professional">Professionnel</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={usersFilter.status} onValueChange={(v) => setUsersFilter(f => ({ ...f, status: v === 'all' ? '' : v }))}>
-                      <SelectTrigger className="w-36">
-                        <SelectValue placeholder="Statut" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Tous les statuts</SelectItem>
-                        <SelectItem value="active">Actif</SelectItem>
-                        <SelectItem value="inactive">Inactif</SelectItem>
-                        <SelectItem value="suspended">Suspendu</SelectItem>
-                        <SelectItem value="pending">En attente</SelectItem>
-                        <SelectItem value="approved">Approuvé</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
-                </div>
               </CardHeader>
               <CardContent>
-                <Table>
+                {/* Liste mobile — visible uniquement sur mobile */}
+                <div className="space-y-2 md:hidden">
+                  {users.map((user) => (
+                    <div key={user.id} className="relative">
+                      <MobileListItem
+                        avatar={
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm">
+                            {(user.prenom?.[0] || user.nom?.[0] || '?').toUpperCase()}
+                          </div>
+                        }
+                        title={`${user.prenom || ''} ${user.nom || ''}`.trim()}
+                        subtitle={user.email}
+                        badge={
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge variant="outline" className={roleColor(user.role)}>{user.role}</Badge>
+                            <Badge variant="outline" className={statusColor(user.status)} style={{fontSize:'10px'}}>{user.status}</Badge>
+                          </div>
+                        }
+                        showChevron={false}
+                        className="relative"
+                      />
+                      <div className="absolute top-2 right-2">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleStatusChange(user.id, 'active')}>
+                              <CheckCircle className="h-4 w-4 mr-2 text-emerald-500" /> Activer
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusChange(user.id, 'suspended')}>
+                              <AlertTriangle className="h-4 w-4 mr-2 text-red-500" /> Suspendre
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/admin/validate-professionals?userId=${user.id}`)}>
+                              <Activity className="h-4 w-4 mr-2 text-primary" /> Voir / Valider
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="hidden md:block">
+                  <div className="overflow-auto">
+                  <Table className="w-full">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Utilisateur</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead>Inscription</TableHead>
+                      <TableHead className="text-sm text-muted-foreground">Utilisateur</TableHead>
+                      <TableHead className="text-sm text-muted-foreground">Role</TableHead>
+                      <TableHead className="text-sm text-muted-foreground">Statut</TableHead>
+                      <TableHead className="text-sm text-muted-foreground">Inscription</TableHead>
                       <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {users.map(user => (
-                      <TableRow key={user.id}>
+                      <TableRow key={user.id} className="hover:bg-muted/40">
                         <TableCell>
-                          <div>
-                            <p className="font-medium">{user.prenom} {user.nom}</p>
-                            <p className="text-sm text-muted-foreground">{user.email}</p>
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm">
+                              {(user.prenom?.[0] || user.nom?.[0] || '?').toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-medium">{user.prenom} {user.nom}</p>
+                              <p className="text-sm text-muted-foreground">{user.email}</p>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <Select defaultValue={user.role} onValueChange={(v) => handleRoleChange(user.id, v)}>
-                            <SelectTrigger className={`w-32 ${roleColor(user.role)}`}>
+                            <SelectTrigger className={`w-32 h-10 text-sm ${roleColor(user.role)}`}>
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -284,7 +332,7 @@ const AdminDashboard = () => {
                           </Select>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={statusColor(user.status)}>
+                          <Badge variant="outline" className={`${statusColor(user.status)} px-2 py-1 text-xs`}>
                             {user.status}
                           </Badge>
                         </TableCell>
@@ -315,7 +363,6 @@ const AdminDashboard = () => {
                                       alert('Professionnel approuve');
                                     } catch (e:any) {
                                       if (e?.status === 409 && e?.data?.redirect) {
-                                        // Ask admin to go validate documents
                                         if (confirm(e.message + '\n\nVoulez-vous aller valider les documents maintenant ?')) {
                                           navigate(e.data.redirect);
                                         }
@@ -338,6 +385,8 @@ const AdminDashboard = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
+                </div>
 
                 {/* Pagination */}
                 {usersPagination.pages > 1 && (
@@ -349,6 +398,7 @@ const AdminDashboard = () => {
                       <Button
                         variant="outline"
                         size="sm"
+                        className="h-10 w-10 p-0"
                         disabled={usersPagination.page <= 1}
                         onClick={() => setUsersPagination(p => ({ ...p, page: p.page - 1 }))}
                       >
@@ -357,6 +407,7 @@ const AdminDashboard = () => {
                       <Button
                         variant="outline"
                         size="sm"
+                        className="h-10 w-10 p-0"
                         disabled={usersPagination.page >= usersPagination.pages}
                         onClick={() => setUsersPagination(p => ({ ...p, page: p.page + 1 }))}
                       >
@@ -399,41 +450,72 @@ const AdminDashboard = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>UUID</TableHead>
-                      <TableHead>Propriétaire</TableHead>
-                      <TableHead>Risque</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead>Créée</TableHead>
-                      <TableHead className="w-12"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {analyses.map(a => (
-                      <TableRow key={a.id}>
-                        <TableCell>{a.uuid || a.id}</TableCell>
-                        <TableCell>{a.user_nom || a.user_email || '—'}</TableCell>
-                        <TableCell>{a.niveau_risque || a.risk || a.risque || '—'}</TableCell>
-                        <TableCell>{a.status || '—'}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{a.date_analyse ? new Date(a.date_analyse).toLocaleDateString('fr') : (a.created_at ? new Date(a.created_at).toLocaleDateString('fr') : '—')}</TableCell>
-                        <TableCell>
-                          <Link to={`/admin/analyses/${a.id}`} className="text-primary">Voir</Link>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                {/* Mobile list for analyses */}
+                <div className="space-y-2 md:hidden">
+                  {analyses.map((a) => (
+                    <MobileListItem
+                      key={a.id}
+                      avatar={<div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">{(a.user_nom?.[0] || '?').toUpperCase()}</div>}
+                      title={a.user_nom || a.user_email || (a.uuid || a.id)}
+                      subtitle={a.niveau_risque || a.risk || a.risque || '—'}
+                      badge={<div className="flex flex-col items-end gap-1"><Badge variant="outline">{a.status || '—'}</Badge></div>}
+                      showChevron={false}
+                      className="relative"
+                    />
+                  ))}
+                </div>
+
+                <div className="hidden md:block">
+                  <div className="overflow-auto">
+                    <Table className="w-full">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-sm text-muted-foreground">UUID</TableHead>
+                          <TableHead className="text-sm text-muted-foreground">Propriétaire</TableHead>
+                          <TableHead className="text-sm text-muted-foreground">Risque</TableHead>
+                          <TableHead className="text-sm text-muted-foreground">Statut</TableHead>
+                          <TableHead className="text-sm text-muted-foreground">Créée</TableHead>
+                          <TableHead className="w-12"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {analyses.map(a => (
+                          <TableRow key={a.id} className="hover:bg-muted/40">
+                            <TableCell className="text-sm">{a.uuid || a.id}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm">{(a.user_nom?.[0] || '?').toUpperCase()}</div>
+                                <div>
+                                  <div className="font-medium text-sm">{a.user_nom || a.user_email || '—'}</div>
+                                  <div className="text-xs text-muted-foreground">{a.user_email || ''}</div>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${analysisRiskClass(a.niveau_risque || a.risk || a.risque || '')}`}>
+                                {a.niveau_risque || a.risk || a.risque || '—'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-sm">{a.status || '—'}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{a.date_analyse ? new Date(a.date_analyse).toLocaleDateString('fr') : (a.created_at ? new Date(a.created_at).toLocaleDateString('fr') : '—')}</TableCell>
+                            <TableCell>
+                              <Link to={`/admin/analyses/${a.id}`} className="text-primary">Voir</Link>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
 
                 {analysesPagination.pages > 1 && (
                   <div className="flex items-center justify-between mt-4 pt-4 border-t">
                     <p className="text-sm text-muted-foreground">Page {analysesPagination.page} sur {analysesPagination.pages}</p>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" disabled={analysesPagination.page <= 1} onClick={() => setAnalysesPagination(p => ({ ...p, page: p.page - 1 }))}>
+                      <Button variant="outline" size="sm" className="h-10 w-10 p-0" disabled={analysesPagination.page <= 1} onClick={() => setAnalysesPagination(p => ({ ...p, page: p.page - 1 }))}>
                         <ChevronLeft className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" disabled={analysesPagination.page >= analysesPagination.pages} onClick={() => setAnalysesPagination(p => ({ ...p, page: p.page + 1 }))}>
+                      <Button variant="outline" size="sm" className="h-10 w-10 p-0" disabled={analysesPagination.page >= analysesPagination.pages} onClick={() => setAnalysesPagination(p => ({ ...p, page: p.page + 1 }))}>
                         <ChevronRight className="h-4 w-4" />
                       </Button>
                     </div>
@@ -454,6 +536,17 @@ const AdminDashboard = () => {
       </main>
     </div>
   );
+};
+
+const analysisRiskClass = (risk: string) => {
+  const m: Record<string, string> = {
+    sain: 'text-emerald-700 bg-emerald-100',
+    bas: 'text-blue-700 bg-blue-100',
+    modere: 'text-amber-700 bg-amber-100',
+    eleve: 'text-orange-700 bg-orange-100',
+    critique: 'text-red-700 bg-red-100',
+  };
+  return m[risk] || 'text-muted-foreground bg-muted/30';
 };
 
 // Feedback Tab Component

@@ -13,9 +13,9 @@ const ProfessionalCard: React.FC<Props> = ({ professional, onRequest, isFollowin
   const name = `${professional.prenom || ''} ${professional.nom || ''}`.trim();
   return (
     <Card className="p-0 hover:shadow-lg transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-          <div className="h-20 w-20 sm:h-16 sm:w-16 flex-shrink-0 overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-100">
+      <CardContent className="p-3 md:p-4">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 md:gap-4">
+          <div className="h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0 overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-100">
             {professional.avatar_url ? (
               <img src={professional.avatar_url} alt={name} className="h-full w-full object-cover" />
             ) : (
@@ -49,7 +49,7 @@ const ProfessionalCard: React.FC<Props> = ({ professional, onRequest, isFollowin
                   {isFollowing ? (
                     <Button disabled variant="outline" className="whitespace-nowrap w-full sm:w-auto" title="Vous êtes déjà en relation avec ce professionnel">Déjà en relation</Button>
                   ) : (
-                    <Button onClick={() => onRequest(professional)} className="whitespace-nowrap w-full sm:w-auto">Envoyer demande</Button>
+                    <Button onClick={() => onRequest(professional)} className="whitespace-nowrap w-full sm:w-auto h-11">Envoyer demande</Button>
                   )}
                 </div>
               </div>

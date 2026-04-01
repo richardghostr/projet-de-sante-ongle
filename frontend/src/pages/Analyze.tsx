@@ -439,13 +439,13 @@ const Analyze = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted/30">
+    <div className="flex min-h-dvh flex-col bg-muted/30">
       <Navbar />
 
-      <main className="container flex-1 py-8">
+      <main className="container flex-1 py-4 pb-24 md:py-8 md:pb-8">
         <div className="mx-auto max-w-2xl">
-          <h1 className="mb-2 text-3xl font-bold">Nouvelle analyse</h1>
-          <p className="mb-8 text-muted-foreground">
+          <h1 className="mb-1 text-2xl font-bold md:text-3xl">Nouvelle analyse</h1>
+          <p className="mb-6 text-sm text-muted-foreground md:mb-8 md:text-base">
             Uploadez une photo de votre ongle pour obtenir un diagnostic IA
           </p>
 
@@ -483,11 +483,11 @@ const Analyze = () => {
                       const droppedFile = e.dataTransfer.files[0];
                       if (droppedFile) handleFile(droppedFile);
                     }}
-                    className="flex cursor-pointer flex-col items-center gap-4 rounded-2xl border-2 border-dashed p-12 transition-colors hover:border-primary hover:bg-accent/50"
+                    className="flex cursor-pointer flex-col items-center gap-4 rounded-2xl border-2 border-dashed p-6 md:p-10 transition-colors hover:border-primary hover:bg-accent/50"
                   >
                       <div className="flex flex-col items-center gap-4">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                          <Upload className="h-8 w-8" />
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary md:h-16 md:w-16">
+                          <Upload className="h-6 w-6 md:h-8 md:w-8" />
                         </div>
 
                         <div className="text-center">
@@ -495,11 +495,10 @@ const Analyze = () => {
                           <p className="text-sm text-muted-foreground">ou sélectionnez / prenez une photo (JPG, PNG — max 5MB)</p>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row gap-2 mt-2">
-                          <Button variant="outline" onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }} className="gap-2">
-                            <Upload className="h-4 w-4" /> Importer une image
-                          </Button>
-                          <Button onClick={async (e) => {
+                        <div className="flex w-full flex-col gap-3 mt-4">
+                          <Button
+                            className="h-12 w-full gap-2 rounded-xl text-base"
+                            onClick={async (e) => {
                               e.stopPropagation();
                               // Try opening native getUserMedia (desktop browsers / webcams)
                               if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -526,12 +525,20 @@ const Analyze = () => {
                                 // no mediaDevices: fallback to file input (mobile will open camera)
                                 cameraInputRef.current?.click();
                               }
-                            }} className="gap-2">
-                            <Camera className="h-4 w-4" /> Prendre une photo
+                            }}
+                          >
+                            <Camera className="h-5 w-5" /> Prendre une photo
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="h-12 w-full gap-2 rounded-xl text-base"
+                            onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
+                          >
+                            <Upload className="h-5 w-5" /> Importer depuis la galerie
                           </Button>
                         </div>
 
-                        <p className="mt-3 text-sm text-muted-foreground">Prenez une photo nette, bien éclairée, centrée sur l’ongle.</p>
+                        <p className="mt-2 text-center text-xs text-muted-foreground md:text-sm">Prenez une photo nette, bien éclairée, centrée sur l'ongle.</p>
                       </div>
                     <input
                       ref={inputRef}
@@ -596,8 +603,7 @@ const Analyze = () => {
                       <img
                         src={preview}
                         alt="Preview"
-                        className="w-full object-cover"
-                        style={{ maxHeight: 400 }}
+                        className="w-full object-cover max-h-[280px] md:max-h-[400px]"
                       />
 
                       <button
@@ -620,7 +626,7 @@ const Analyze = () => {
 
                     <Button
                       onClick={startAnalysis}
-                      className="w-full gap-2 rounded-xl"
+                      className="h-14 w-full gap-2 rounded-xl text-base"
                       size="lg"
                     >
                       <Camera className="h-4 w-4" />
@@ -634,7 +640,7 @@ const Analyze = () => {
 
           {step === "analyzing" && (
             <Card className="shadow-sm">
-              <CardContent className="flex flex-col items-center gap-6 p-12">
+              <CardContent className="flex flex-col items-center gap-6 p-8 md:p-12">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                   <Activity className="h-8 w-8 animate-pulse" />
                 </div>
@@ -674,7 +680,7 @@ const Analyze = () => {
                   </div>
                 )}
 
-                <div className="grid gap-4 sm:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="rounded-xl border p-4 text-center">
                     <p className="mb-1 text-xs text-muted-foreground">
                       Diagnostic
@@ -719,7 +725,7 @@ const Analyze = () => {
                   <div className="grid gap-3 sm:grid-cols-2">
                     {/* Start Treatment Tracking */}
                     <Card 
-                      className="cursor-pointer border-2 border-transparent transition-all hover:border-primary hover:shadow-md"
+                        className="cursor-pointer border-2 border-transparent transition-all hover:border-primary hover:shadow-md min-h-[80px]"
                       onClick={() => {
                         setTreatmentName(result.result?.pathologie || result.diagnostic || "Mon traitement");
                         setShowTreatmentDialog(true);
@@ -740,7 +746,7 @@ const Analyze = () => {
 
                     {/* View History */}
                     <Card 
-                      className="cursor-pointer border-2 border-transparent transition-all hover:border-primary hover:shadow-md"
+                      className="cursor-pointer border-2 border-transparent transition-all hover:border-primary hover:shadow-md min-h-[80px]"
                       onClick={() => navigate("/history")}
                     >
                       <CardContent className="flex items-start gap-4 p-4">
@@ -758,7 +764,7 @@ const Analyze = () => {
 
                     {/* Consult a Professional */}
                     <Card 
-                      className="cursor-pointer border-2 border-transparent transition-all hover:border-amber-500 hover:shadow-md"
+                      className="cursor-pointer border-2 border-transparent transition-all hover:border-amber-500 hover:shadow-md min-h-[80px]"
                       onClick={() => navigate(`/consult/${uploadResponse?.uuid || uploadResponse?.analysis_id || (result && (result as any).uuid) || ''}`)}
                     >
                       <CardContent className="flex items-start gap-4 p-4">
@@ -776,7 +782,7 @@ const Analyze = () => {
 
                     {/* New Analysis */}
                     <Card 
-                      className="cursor-pointer border-2 border-transparent transition-all hover:border-emerald-500 hover:shadow-md"
+                      className="cursor-pointer border-2 border-transparent transition-all hover:border-emerald-500 hover:shadow-md min-h-[80px]"
                       onClick={reset}
                     >
                       <CardContent className="flex items-start gap-4 p-4">
@@ -813,7 +819,7 @@ const Analyze = () => {
           )}
           {/* Treatment Creation Dialog */}
           <Dialog open={showTreatmentDialog} onOpenChange={setShowTreatmentDialog}>
-            <DialogContent className="sm:max-w-md">
+              <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Demarrer un suivi de traitement</DialogTitle>
                 <DialogDescription>
@@ -829,6 +835,7 @@ const Analyze = () => {
                     placeholder="Ex: Traitement mycose pouce droit"
                     value={treatmentName}
                     onChange={(e) => setTreatmentName(e.target.value)}
+                    className="h-12 text-base"
                   />
                 </div>
                 
@@ -840,6 +847,7 @@ const Analyze = () => {
                     value={treatmentNotes}
                     onChange={(e) => setTreatmentNotes(e.target.value)}
                     rows={3}
+                    className="text-base"
                   />
                 </div>
 
@@ -857,17 +865,19 @@ const Analyze = () => {
                 )}
               </div>
 
-              <DialogFooter>
+              <DialogFooter className="flex gap-2">
                 <Button
                   variant="outline"
                   onClick={() => setShowTreatmentDialog(false)}
                   disabled={isCreatingTreatment}
+                  className="h-11 flex-1"
                 >
                   Annuler
                 </Button>
                 <Button
                   onClick={handleStartTreatment}
                   disabled={isCreatingTreatment || !treatmentName.trim()}
+                  className="h-11 flex-1"
                 >
                   {isCreatingTreatment ? (
                     <>

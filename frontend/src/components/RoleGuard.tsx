@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth, UserRole } from '@/contexts/AuthContext';
 import { Loader2, ShieldX } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface RoleGuardProps {
   children: React.ReactNode;
@@ -31,7 +32,7 @@ export const RoleGuard = ({
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-dvh items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -51,18 +52,15 @@ export const RoleGuard = ({
     }
 
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
-        <ShieldX className="h-16 w-16 text-destructive" />
-        <h1 className="text-2xl font-bold text-foreground">Acces refuse</h1>
-        <p className="text-center text-muted-foreground">
-          Vous n&apos;avez pas les permissions necessaires pour acceder a cette page.
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 p-6 bg-muted/30">
+        <ShieldX className="h-14 w-14 md:h-16 md:w-16 text-destructive" />
+        <h1 className="text-xl font-bold md:text-2xl text-center">Accès refusé</h1>
+        <p className="text-center text-sm text-muted-foreground max-w-xs">
+          Vous n&apos;avez pas les permissions nécessaires pour accéder à cette page.
         </p>
-        <a 
-          href="/dashboard" 
-          className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
-        >
-          Retour au tableau de bord
-        </a>
+        <Button asChild className="h-12 w-full max-w-xs rounded-xl text-base">
+          <a href="/dashboard">Retour au tableau de bord</a>
+        </Button>
       </div>
     );
   }

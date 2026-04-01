@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Navbar } from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { StatCard } from '@/components/StatCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -186,7 +187,7 @@ const TreatmentDetail = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-dvh items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
@@ -194,11 +195,11 @@ const TreatmentDetail = () => {
 
   if (!treatment) {
     return (
-      <div className="flex min-h-screen flex-col bg-muted/30">
+      <div className="flex min-h-dvh flex-col bg-muted/30">
         <Navbar />
-        <main className="container flex-1 py-8 text-center">
+        <main className="container flex-1 py-4 pb-24 md:py-8 md:pb-8 text-center">
           <p className="text-muted-foreground">Traitement non trouve</p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate('/treatments')}>
+          <Button variant="outline" className="mt-4 w-full max-w-xs mx-auto" onClick={() => navigate('/treatments')}>
             Retour aux traitements
           </Button>
         </main>
@@ -207,31 +208,24 @@ const TreatmentDetail = () => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted/30">
+    <div className="flex min-h-dvh flex-col bg-muted/30">
       <Navbar />
-      <main className="container flex-1 py-8">
+      <main className="container flex-1 py-4 pb-24 md:py-8 md:pb-8">
         {/* Header */}
         <div className="mb-6">
-          <Button variant="ghost" size="sm" className="mb-4 gap-2" onClick={() => navigate('/treatments')}>
-            <ArrowLeft className="h-4 w-4" /> Retour
-          </Button>
-          
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-2xl font-bold">{treatment.titre}</h1>
-                <Badge className={statusColor(treatment.status)}>{treatment.status}</Badge>
-              </div>
-              {treatment.pathologie_nom && (
-                <p className="text-muted-foreground">{treatment.pathologie_nom}</p>
-              )}
-              <p className="text-sm text-muted-foreground mt-1">
-                Debut: {new Date(treatment.date_debut).toLocaleDateString('fr')}
-                {treatment.date_fin_prevue && ` - Fin prevue: ${new Date(treatment.date_fin_prevue).toLocaleDateString('fr')}`}
-              </p>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-xl font-bold md:text-2xl">{treatment.titre}</h1>
+              <Badge className={statusColor(treatment.status)}>{treatment.status}</Badge>
             </div>
-            
-            <div className="flex gap-2">
+            {treatment.pathologie_nom && (
+              <p className="text-sm text-muted-foreground">{treatment.pathologie_nom}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Début : {new Date(treatment.date_debut).toLocaleDateString('fr')}
+              {treatment.date_fin_prevue && ` · Fin prévue : ${new Date(treatment.date_fin_prevue).toLocaleDateString('fr')}`}
+            </p>
+            <div className="flex flex-wrap gap-2 mt-1">
               <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -241,12 +235,12 @@ const TreatmentDetail = () => {
                 aria-label="Upload treatment photo"
                 title="Upload treatment photo"
               />
-              <Button variant="outline" className="gap-2" onClick={() => fileInputRef.current?.click()}>
+              <Button variant="outline" className="h-11 flex-1 gap-2 min-w-[140px]" onClick={() => fileInputRef.current?.click()}>
                 <Camera className="h-4 w-4" /> Photo
               </Button>
               <Dialog open={addEntryOpen} onOpenChange={setAddEntryOpen}>
                 <DialogTrigger asChild>
-                  <Button className="gap-2"><Plus className="h-4 w-4" /> Entree</Button>
+                  <Button className="h-11 flex-1 gap-2 min-w-[140px]"><Plus className="h-4 w-4" /> Entrée</Button>
                 </DialogTrigger>
                 <DialogContent>
                   <AddEntryForm uuid={uuid!} onSuccess={() => { setAddEntryOpen(false); loadTreatment(); }} />
@@ -283,51 +277,11 @@ const TreatmentDetail = () => {
 
         {/* Stats cards */}
         {stats && (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-            <Card className="shadow-sm">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
-                  <Calendar className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Duree</p>
-                  <p className="text-lg font-bold">{stats.duree_jours} jours</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
-                  <FileText className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Entrees</p>
-                  <p className="text-lg font-bold">{stats.total_entries}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
-                  <Image className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Photos</p>
-                  <p className="text-lg font-bold">{stats.photos_count}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
-                  <Activity className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Freq. reelle</p>
-                  <p className="text-lg font-bold">{stats.frequence_reelle}/sem</p>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <StatCard label="Durée" value={`${stats.duree_jours}j`} icon={Calendar} color="text-blue-600" />
+            <StatCard label="Entrées" value={stats.total_entries} icon={FileText} color="text-emerald-600" />
+            <StatCard label="Photos" value={stats.photos_count} icon={Image} color="text-purple-600" />
+            <StatCard label="Jours suivi" value={stats.frequence_reelle ?? 0} icon={Clock} color="text-amber-600" />
           </div>
         )}
 
@@ -359,22 +313,14 @@ const TreatmentDetail = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="entries" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="entries" className="gap-2">
-              <FileText className="h-4 w-4" /> Journal ({entries.length})
-            </TabsTrigger>
-            <TabsTrigger value="details" className="gap-2">
-              <Target className="h-4 w-4" /> Details
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+            <TabsTrigger value="entries" className="text-xs md:text-sm"> <FileText className="h-4 w-4" /> Journal ({entries.length})</TabsTrigger>
+            <TabsTrigger value="details" className="text-xs md:text-sm"> <Target className="h-4 w-4" /> Détails</TabsTrigger>
             {notes.length > 0 && (
-              <TabsTrigger value="notes" className="gap-2">
-                <Pill className="h-4 w-4" /> Notes pro ({notes.length})
-              </TabsTrigger>
+              <TabsTrigger value="notes" className="text-xs md:text-sm"> <Pill className="h-4 w-4" /> Notes pro ({notes.length})</TabsTrigger>
             )}
           {treatment?.professional_nom && (
-            <TabsTrigger value="professional" className="gap-2">
-              <Activity className="h-4 w-4" /> Professionnel
-            </TabsTrigger>
+            <TabsTrigger value="professional" className="text-xs md:text-sm"> <Activity className="h-4 w-4" /> Professionnel</TabsTrigger>
           )}
           </TabsList>
 
@@ -579,7 +525,7 @@ const EntryItem = ({ entry, treatmentUuid, onDelete }: { entry: TreatmentEntry; 
         <img
           src={api.getTreatmentPhotoUrl(treatmentUuid, entry.uuid, 'thumb')}
           alt="Photo"
-          className="h-20 w-20 rounded-lg object-cover shrink-0"
+          className="h-14 w-14 rounded-lg object-cover shrink-0"
         />
       )}
       <div className="flex-1 min-w-0">
@@ -593,7 +539,7 @@ const EntryItem = ({ entry, treatmentUuid, onDelete }: { entry: TreatmentEntry; 
             </div>
             {entry.note && <p className="mt-2 text-sm">{entry.note}</p>}
           </div>
-          <Button variant="ghost" size="icon" onClick={handleDelete}>
+          <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={handleDelete}>
             <Trash2 className="h-4 w-4 text-muted-foreground" />
           </Button>
         </div>
@@ -677,6 +623,7 @@ const AddEntryForm = ({ uuid, onSuccess }: { uuid: string; onSuccess: () => void
               type="date"
               value={form.date_entry}
               onChange={(e) => setForm(f => ({ ...f, date_entry: e.target.value }))}
+              className="h-12 text-base"
             />
           </div>
         </div>
@@ -688,6 +635,7 @@ const AddEntryForm = ({ uuid, onSuccess }: { uuid: string; onSuccess: () => void
             value={form.note}
             onChange={(e) => setForm(f => ({ ...f, note: e.target.value }))}
             rows={3}
+            className="text-base"
           />
         </div>
 
@@ -706,7 +654,7 @@ const AddEntryForm = ({ uuid, onSuccess }: { uuid: string; onSuccess: () => void
           <div>
             <label className="text-sm font-medium">Amelioration</label>
             <Select value={form.amelioration_percue} onValueChange={(v) => setForm(f => ({ ...f, amelioration_percue: v }))}>
-              <SelectTrigger>
+              <SelectTrigger className="h-12 text-base">
                 <SelectValue placeholder="Selectionner" />
               </SelectTrigger>
               <SelectContent>
@@ -721,7 +669,7 @@ const AddEntryForm = ({ uuid, onSuccess }: { uuid: string; onSuccess: () => void
           <div>
             <label className="text-sm font-medium">Humeur</label>
             <Select value={form.humeur} onValueChange={(v) => setForm(f => ({ ...f, humeur: v }))}>
-              <SelectTrigger>
+              <SelectTrigger className="h-12 text-base">
                 <SelectValue placeholder="Selectionner" />
               </SelectTrigger>
               <SelectContent>

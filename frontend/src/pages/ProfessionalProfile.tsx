@@ -203,16 +203,16 @@ const ProfessionalProfile = () => {
   };
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-dvh bg-muted/30">
       <Navbar />
-      <main className="container py-8">
+      <main className="container flex-1 py-4 pb-24 md:py-8 md:pb-8">
         {!isApproved && (
           <div className="mb-4 p-3 rounded bg-yellow-50 border-l-4 border-yellow-300 text-yellow-800">Votre compte professionnel est en attente de validation par un administrateur. L'accès complet au profil est restreint.</div>
         )}
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Fiche professionnelle clinique</h1>
-            <p className="text-muted-foreground">Données cliniques et documents</p>
+            <h1 className="text-2xl md:text-3xl font-bold">Fiche professionnelle clinique</h1>
+              <p className="text-muted-foreground text-sm">Données cliniques et documents</p>
           </div>
           <div>
             <Button variant="ghost" onClick={() => window.location.reload()}>Rafraîchir</Button>
@@ -238,17 +238,17 @@ const ProfessionalProfile = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div>
                         <Label>Prénom</Label>
-                        <Input className="text-lg font-semibold" value={form.prenom || ''} onChange={e => handleChange('prenom', e.target.value)} disabled={!canEdit} />
+                        <Input className="h-11 text-lg font-semibold" value={form.prenom || ''} onChange={e => handleChange('prenom', e.target.value)} disabled={!canEdit} />
                       </div>
                       <div>
                         <Label>Nom</Label>
-                        <Input className="text-lg font-semibold" value={form.nom || ''} onChange={e => handleChange('nom', e.target.value)} disabled={!canEdit} />
+                        <Input className="h-11 text-lg font-semibold" value={form.nom || ''} onChange={e => handleChange('nom', e.target.value)} disabled={!canEdit} />
                       </div>
                     </div>
                   </div>
                   <div className="text-sm text-muted-foreground mt-2 w-full">
                     <Label>Email</Label>
-                    <Input className="text-sm w-full" value={form.email || ''} disabled={true} />
+                    <Input className="h-11 text-sm w-full" value={form.email || ''} disabled={true} />
                   </div>
                 </div>
                 <div className="w-full mt-2 space-y-2 text-left">
@@ -266,11 +266,11 @@ const ProfessionalProfile = () => {
                   </div>
                   <div>
                     <Label>Date de naissance</Label>
-                    <Input type="date" value={form.date_naissance || profile.date_naissance || ''} onChange={(e: any) => handleChange('date_naissance', e.target.value)} />
+                    <Input className="h-11" type="date" value={form.date_naissance || profile.date_naissance || ''} onChange={(e: any) => handleChange('date_naissance', e.target.value)} />
                   </div>
                   <div>
                     <Label>Nationalité</Label>
-                    <Input value={form.nationalite || profile.nationalite || ''} onChange={(e: any) => handleChange('nationalite', e.target.value)} />
+                    <Input className="h-11" value={form.nationalite || profile.nationalite || ''} onChange={(e: any) => handleChange('nationalite', e.target.value)} />
                   </div>
                   <div className="mt-2">
                     {canEdit && (
@@ -403,13 +403,13 @@ const ProfessionalProfile = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <input type="file" accept="application/pdf,image/*" onChange={handleUpload} disabled={uploading} />
+                        <input className="w-full" type="file" accept="application/pdf,image/*" onChange={handleUpload} disabled={uploading} />
                   {!isApproved && <div className="text-sm text-amber-700 mt-2">Votre compte professionnel est en attente : vous pouvez toutefois déposer des documents pour validation par un administrateur.</div>}
                   {uploading && <div className="text-sm text-muted-foreground mt-2">Envoi en cours...</div>}
                 </div>
 
                 <div className="mt-2 space-y-2">
-                  {(documents && documents.length > 0) ? (
+                    {(documents && documents.length > 0) ? (
                     documents.map((d: any, i: number) => (
                       <div key={i} className="flex items-center justify-between border p-2 rounded">
                         <div>
