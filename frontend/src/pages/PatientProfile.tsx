@@ -25,7 +25,10 @@ const PatientProfile = () => {
       setLoading(true);
         try {
         const res: any = await api.getProfile();
-        const p = res.profile || res;
+        const data = res?.data || res;
+        const p = data?.profile || data;
+          // attach stats if provided at top-level
+          if (data?.stats) p.stats = data.stats;
           setProfile(p);
           setForm({
             prenom: p.prenom || '',
@@ -69,7 +72,8 @@ const PatientProfile = () => {
           </div>
           <div className="flex w-full sm:w-auto items-center gap-2">
             <Button variant="ghost" onClick={() => window.location.reload()}>Rafraîchir</Button>
-            <Button className="ml-auto sm:ml-0" onClick={async () => {
+            
+            <Button className="ml-auto sm:ml-0 w-full sm:w-auto" onClick={async () => {
               setSaving(true);
               try {
                 // prepare payload: convert allergies CSV -> array
@@ -85,7 +89,7 @@ const PatientProfile = () => {
               } finally {
                 setSaving(false);
               }
-            }} disabled={saving} className="w-full sm:w-auto">{saving ? 'Enregistrement...' : 'Enregistrer'}</Button>
+            }} disabled={saving}>{saving ? 'Enregistrement...' : 'Enregistrer'}</Button>
           </div>
         </div>
 

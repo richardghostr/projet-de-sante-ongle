@@ -22,8 +22,10 @@ const History = () => {
     try {
       const res = await api.getHistory(p, limit);
       const data = res.data || res;
-      setAnalyses(data.analyses || data || []);
-      setTotal(data.total || 0);
+      const analysesList = data.analyses || data || [];
+      setAnalyses(analysesList);
+      const totalCount = data.pagination?.total ?? data.total ?? (Array.isArray(analysesList) ? analysesList.length : 0);
+      setTotal(Number(totalCount || 0));
       setPage(p);
     } catch (err: any) {
       toast({ title: 'Erreur', description: err.message, variant: 'destructive' });

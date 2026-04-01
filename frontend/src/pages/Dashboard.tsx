@@ -41,11 +41,17 @@ const Dashboard = () => {
     })();
   }, []);
 
+  // Map API stats shape to dashboard cards
+  const totalAnalyses = stats?.total_analyses ?? 0;
+  const resultsSains = stats?.par_niveau_risque?.sain ?? 0;
+  const pathologiesDetected = Array.isArray(stats?.par_pathologie) ? (stats.par_pathologie.reduce((acc:any, p:any) => acc + (p.count || 0), 0)) : 0;
+  const lastAnalysisDate = stats?.derniere_analyse?.date_analyse ? new Date(stats.derniere_analyse.date_analyse).toLocaleDateString('fr') : '—';
+
   const statCards = [
-    { label: 'Analyses totales', value: stats?.total ?? 0, icon: Activity, color: 'text-primary' },
-    { label: 'Résultats sains', value: stats?.healthy ?? 0, icon: CheckCircle, color: 'text-emerald-500' },
-    { label: 'Pathologies détectées', value: stats?.pathologies ?? 0, icon: AlertTriangle, color: 'text-amber-500' },
-    { label: 'Dernière analyse', value: stats?.last_analysis ? new Date(stats.last_analysis).toLocaleDateString('fr') : '—', icon: Clock, color: 'text-blue-500' },
+    { label: 'Analyses totales', value: totalAnalyses, icon: Activity, color: 'text-primary' },
+    { label: 'Résultats sains', value: resultsSains, icon: CheckCircle, color: 'text-emerald-500' },
+    { label: 'Pathologies détectées', value: pathologiesDetected, icon: AlertTriangle, color: 'text-amber-500' },
+    { label: 'Dernière analyse', value: lastAnalysisDate, icon: Clock, color: 'text-blue-500' },
   ];
 
   const riskColor = (risk: string) => {
@@ -71,6 +77,9 @@ const Dashboard = () => {
           <Card className="shadow-sm">
             <CardHeader className="flex-row items-center justify-between">
               <CardTitle className="text-lg">Invitations de suivi</CardTitle>
+              <Button variant="ghost" size="sm" asChild className="gap-1">
+                <Link to="/patient/follow-requests">Mes demandes de suivi</Link>
+              </Button>
             </CardHeader>
             <CardContent>
               {invLoading ? (

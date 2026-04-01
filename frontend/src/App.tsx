@@ -30,6 +30,7 @@ import PatientTreatmentView from './pages/PatientTreatmentView';
 import ProfessionalProfile from './pages/ProfessionalProfile';
 import PatientProfile from './pages/PatientProfile';
 import ConsultProfessionals from './pages/ConsultProfessionals';
+import PatientFollowRequests from './pages/PatientFollowRequests';
 
 // Treatment tracking pages
 import Treatments from "./pages/Treatments";
@@ -59,6 +60,7 @@ const App = () => (
             <Route path="/consult/:analysisId" element={<ProtectedRoute><ConsultProfessionals /></ProtectedRoute>} />
             <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
             <Route path="/history/:id" element={<ProtectedRoute><AdminAnalysisDetail /></ProtectedRoute>} />
+            <Route path="/patient/follow-requests" element={<ProtectedRoute><RoleGuard allowedRoles={["user","admin"]}><PatientFollowRequests /></RoleGuard></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/professional/profile" element={<ProtectedRoute><RoleGuard allowedRoles={["professional","admin"]}><ProfessionalProfile /></RoleGuard></ProtectedRoute>} />
             <Route path="/patient/profile" element={<ProtectedRoute><RoleGuard allowedRoles={["professional","admin","user"]}><PatientProfile /></RoleGuard></ProtectedRoute>} />
