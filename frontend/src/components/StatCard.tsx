@@ -11,13 +11,19 @@ interface StatCardProps {
 
 export const StatCard = ({ label, value, icon: Icon, color = 'text-primary' }: StatCardProps) => (
   <Card className="shadow-sm">
-    <CardContent className="flex items-center gap-3 p-4 md:gap-4 md:p-5">
-      <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted md:h-11 md:w-11', color)}>
-        <Icon className="h-5 w-5" />
+    <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-3 md:gap-4 md:p-5">
+      <div
+        className={cn(
+          'flex shrink-0 items-center justify-center rounded-xl bg-muted',
+          'h-8 w-8 sm:h-9 sm:w-9 md:h-11 md:w-11',
+          color
+        )}
+      >
+        <Icon className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
       </div>
       <div className="min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-xl font-bold tabular-nums md:text-2xl">{value}</p>
+        <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{label}</p>
+        <p className="text-base sm:text-lg md:text-2xl font-bold tabular-nums truncate">{value}</p>
       </div>
     </CardContent>
   </Card>
