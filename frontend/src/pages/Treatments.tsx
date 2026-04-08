@@ -116,7 +116,7 @@ const Treatments = () => {
           subtitle="Suivez l'evolution de vos traitements"
           action={
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-              <Button variant="outline" className="h-12 w-full rounded-xl text-base sm:h-10 sm:w-auto sm:text-sm" onClick={() => navigate('/professional-notes')}>Notes pro</Button>
+              <Button variant="outline" className="h-12 w-full rounded-xl text-base sm:h-10 sm:w-auto sm:text-sm" onClick={() => navigate('/professional/patients')}>Patients</Button>
               <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                 <DialogTrigger asChild>
                   <Button className="h-12 w-full gap-2 rounded-xl text-base sm:h-10 sm:w-auto sm:text-sm"><Plus className="h-4 w-4" /> Nouveau</Button>

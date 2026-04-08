@@ -365,21 +365,21 @@ const ProfessionalDashboard = () => {
 
         {/* Patient Dossier Dialog */}
         <Dialog open={!!selectedPatient} onOpenChange={(open) => !open && setSelectedPatient(null)}>
-          <DialogContent className="max-w-3xl max-h-[80vh]">
+          <DialogContent className="w-full max-w-full sm:max-w-2xl md:max-w-3xl max-h-[80vh] p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle>Dossier de {selectedPatient?.prenom} {selectedPatient?.nom}</DialogTitle>
               <DialogDescription>Consultez analyses, traitements et notes lies au patient</DialogDescription>
             </DialogHeader>
             {patientDossier ? (
               <Tabs defaultValue="analyses" className="mt-4">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="analyses" className="text-xs sm:text-sm">Analyses</TabsTrigger>
-                  <TabsTrigger value="treatments" className="text-xs sm:text-sm">Traitements</TabsTrigger>
-                  <TabsTrigger value="notes" className="text-xs sm:text-sm">Notes</TabsTrigger>
+                <TabsList className="flex w-full gap-1 bg-muted p-1 text-muted-foreground rounded-md overflow-auto">
+                  <TabsTrigger value="analyses" className="text-xs sm:text-sm whitespace-nowrap px-3 py-1.5">Analyses</TabsTrigger>
+                  <TabsTrigger value="treatments" className="text-xs sm:text-sm whitespace-nowrap px-3 py-1.5">Traitements</TabsTrigger>
+                  <TabsTrigger value="notes" className="text-xs sm:text-sm whitespace-nowrap px-3 py-1.5">Notes</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="analyses">
-                  <ScrollArea className="h-80">
+                  <ScrollArea className="h-64 sm:h-80">
                     {patientDossier.analyses?.length === 0 ? (
                       <p className="text-center text-muted-foreground py-8">Aucune analyse</p>
                     ) : (
@@ -414,7 +414,7 @@ const ProfessionalDashboard = () => {
                 </TabsContent>
 
                 <TabsContent value="treatments">
-                  <ScrollArea className="h-80">
+                  <ScrollArea className="h-64 sm:h-80">
                     {patientDossier.treatments?.length === 0 ? (
                       <p className="text-center text-muted-foreground py-8">Aucun traitement</p>
                     ) : (
@@ -441,7 +441,7 @@ const ProfessionalDashboard = () => {
                 </TabsContent>
 
                 <TabsContent value="notes">
-                  <ScrollArea className="h-80">
+                  <ScrollArea className="h-64 sm:h-80">
                     <AddNoteForm patientId={selectedPatient?.id || 0} onSuccess={() => openPatientDossier(selectedPatient!)} />
                     <div className="mt-4 space-y-2">
                       {patientDossier.notes?.map((n: any) => (

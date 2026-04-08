@@ -36,6 +36,7 @@ import PatientFollowRequests from './pages/PatientFollowRequests';
 import Treatments from "./pages/Treatments";
 import TreatmentDetail from "./pages/TreatmentDetail";
 import ProfessionalNotes from "./pages/ProfessionalNotes";
+import ProfessionalPatients from "./pages/ProfessionalPatients";
 
 const queryClient = new QueryClient();
 
@@ -69,6 +70,7 @@ const App = () => (
             <Route path="/treatments" element={<ProtectedRoute><Treatments /></ProtectedRoute>} />
             <Route path="/treatments/:id" element={<ProtectedRoute><TreatmentDetail /></ProtectedRoute>} />
             <Route path="/professional-notes" element={<ProtectedRoute><ProfessionalNotes /></ProtectedRoute>} />
+            <Route path="/professional/patients" element={<ProtectedRoute><RoleGuard allowedRoles={["professional","admin"]}><ProfessionalPatients /></RoleGuard></ProtectedRoute>} />
             
             {/* Admin routes - admin only */}
             <Route 

@@ -40,11 +40,11 @@ export const Navbar = () => {
         { to: '/admin/validate-professionals', label: 'Validation', icon: CheckSquare },
       ];
     }
-    if (hasRole('professional')) {
+      if (hasRole('professional')) {
       return [
         { to: '/professional', label: 'Tableau', icon: Stethoscope },
         { to: '/professional/follow-requests', label: 'Demandes', icon: Inbox },
-        { to: '/professional-notes', label: 'Notes', icon: FileText },
+        { to: '/professional/patients', label: 'Patients', icon: FileText },
         { to: '/professional/profile', label: 'Profil', icon: User },
       ];
     }
