@@ -221,47 +221,51 @@ const ProfessionalDashboard = () => {
                     {patients.map((patient) => (
                       <div
                         key={patient.id}
-                        className="flex items-center justify-between rounded-xl border p-4 transition-colors hover:bg-muted/50"
+                        className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between rounded-xl border p-3 sm:p-4 gap-3 transition-colors hover:bg-muted/50"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-medium">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-medium text-sm sm:text-base">
                             {(patient.prenom?.[0] || patient.nom[0]).toUpperCase()}
                           </div>
-                          <div>
-                            <p className="font-medium">{patient.prenom} {patient.nom}</p>
-                            <p className="text-sm text-muted-foreground">{patient.email}</p>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{patient.prenom} {patient.nom}</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground truncate">{patient.email}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
                           <div className="text-right text-sm">
-                            <p>{patient.total_analyses} analyses</p>
-                            <p className="text-muted-foreground">{patient.active_treatments} traitements</p>
+                            <p className="text-sm">{patient.total_analyses} analyses</p>
+                            <p className="text-xs text-muted-foreground">{patient.active_treatments} traitements</p>
                           </div>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => openPatientDossier(patient)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-600"
-                            title="Terminer le suivi"
-                            onClick={async () => {
-                              if (!confirm(`Terminer le suivi avec ${patient.prenom} ${patient.nom} ?`)) return;
-                              try {
-                                await api.endPatientLink(patient.link_id);
-                                toast({ title: 'Succès', description: 'Suivi termine' });
-                                loadDashboard();
-                              } catch (err: any) {
-                                toast({ title: 'Erreur', description: err.message || 'Erreur' });
-                              }
-                            }}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 p-0"
+                              onClick={() => openPatientDossier(patient)}
+                              aria-label={`Ouvrir dossier de ${patient.prenom} ${patient.nom}`}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 p-0 text-red-600"
+                              title="Terminer le suivi"
+                              onClick={async () => {
+                                if (!confirm(`Terminer le suivi avec ${patient.prenom} ${patient.nom} ?`)) return;
+                                try {
+                                  await api.endPatientLink(patient.link_id);
+                                  toast({ title: 'Succès', description: 'Suivi termine' });
+                                  loadDashboard();
+                                } catch (err: any) {
+                                  toast({ title: 'Erreur', description: err.message || 'Erreur' });
+                                }
+                              }}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))}
