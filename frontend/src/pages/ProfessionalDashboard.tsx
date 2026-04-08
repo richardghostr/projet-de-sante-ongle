@@ -138,36 +138,36 @@ const ProfessionalDashboard = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted/30">
+    <div className="flex min-h-dvh flex-col bg-muted/30">
       <Navbar />
-      <main className="container flex-1 py-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+      <main className="container flex-1 py-4 pb-24 md:py-8 md:pb-8">
+        <div className="mb-6 md:mb-8">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
             <Stethoscope className="h-4 w-4" />
             <span>Espace Professionnel</span>
           </div>
-          <h1 className="text-3xl font-bold">Bonjour, Dr. {user?.nom}</h1>
-          <p className="text-muted-foreground">Gerez vos patients et leurs traitements</p>
+          <h1 className="text-2xl font-bold md:text-3xl">Bonjour, Dr. {user?.nom}</h1>
+          <p className="text-sm text-muted-foreground md:text-base">Gérez vos patients et leurs traitements</p>
         </div>
 
         {/* Stats */}
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-6 grid grid-cols-2 gap-3 md:mb-8 md:grid-cols-4 md:gap-4">
           {statCards.map(({ label, value, icon: Icon, color }) => (
             <Card key={label} className="shadow-sm">
-              <CardContent className="flex items-center gap-4 p-5">
-                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted ${color}`}>
-                  <Icon className="h-6 w-6" />
+              <CardContent className="flex items-center gap-3 p-4 md:gap-4 md:p-5">
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted md:h-12 md:w-12 ${color}`}>
+                  <Icon className="h-5 w-5 md:h-6 md:w-6" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">{label}</p>
-                  <p className="text-2xl font-bold tabular-nums">{value}</p>
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="text-xl font-bold tabular-nums md:text-2xl">{value}</p>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="flex flex-col gap-6 lg:grid lg:grid-cols-3">
           {/* Patients list */}
           <div className="lg:col-span-2">
             <Card className="shadow-sm">
@@ -368,10 +368,10 @@ const ProfessionalDashboard = () => {
             </DialogHeader>
             {patientDossier ? (
               <Tabs defaultValue="analyses" className="mt-4">
-                <TabsList>
-                  <TabsTrigger value="analyses">Analyses</TabsTrigger>
-                  <TabsTrigger value="treatments">Traitements</TabsTrigger>
-                  <TabsTrigger value="notes">Mes notes</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="analyses" className="text-xs sm:text-sm">Analyses</TabsTrigger>
+                  <TabsTrigger value="treatments" className="text-xs sm:text-sm">Traitements</TabsTrigger>
+                  <TabsTrigger value="notes" className="text-xs sm:text-sm">Notes</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="analyses">

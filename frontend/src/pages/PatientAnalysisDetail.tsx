@@ -97,7 +97,7 @@ const PatientAnalysisDetail = () => {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       <Navbar />
       <main className="flex items-center justify-center py-20">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -106,7 +106,7 @@ const PatientAnalysisDetail = () => {
   );
 
   if (accessDenied) return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       <Navbar />
       <main className="px-4 py-8 md:container">
         <AccessDenied message={accessMessage} backTo="/professional" backLabel="Retour" />
@@ -115,7 +115,7 @@ const PatientAnalysisDetail = () => {
   );
 
   if (!analysis) return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       <Navbar />
       <main className="px-4 py-8 text-center md:container">
         <p className="text-muted-foreground">Analyse introuvable</p>
@@ -130,7 +130,7 @@ const PatientAnalysisDetail = () => {
   const heat = ia?.heatmap_url || ia?.heatmap || analysis.heatmap_url || analysis.heatmap_path;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       <Navbar />
       <main className="px-4 py-4 pb-24 md:container md:py-8 md:pb-8">
         {/* Mobile Header */}

@@ -121,7 +121,7 @@ const ConsultProfessionals: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       <Navbar />
       <main className="px-4 py-4 pb-24 md:container md:py-8 md:pb-8">
         {/* Mobile Header */}

@@ -92,8 +92,8 @@ const ProfessionalProfile = () => {
     } finally { setUploading(false); }
   };
 
-  if (loading) return (<div className="min-h-screen"><Navbar /><main className="container py-8">Chargement...</main></div>);
-  if (!profile) return (<div className="min-h-screen"><Navbar /><main className="container py-8">Profil introuvable</main></div>);
+  if (loading) return (<div className="flex min-h-dvh flex-col bg-muted/30"><Navbar /><main className="container flex-1 py-8 pb-24 md:pb-8"><div className="flex justify-center py-16"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div></main></div>);
+  if (!profile) return (<div className="flex min-h-dvh flex-col bg-muted/30"><Navbar /><main className="container flex-1 py-8 pb-24 md:pb-8"><p className="text-center text-muted-foreground py-16">Profil introuvable</p></main></div>);
 
   const prof = profile.professional ?? {};
   const normalize = (v: any) => (v === undefined || v === null) ? '' : String(v).toLowerCase();

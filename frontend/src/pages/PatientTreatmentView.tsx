@@ -70,7 +70,7 @@ const PatientTreatmentView = () => {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       <Navbar />
       <main className="flex items-center justify-center py-20">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -79,7 +79,7 @@ const PatientTreatmentView = () => {
   );
 
   if (!treatment) return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       <Navbar />
       <main className="px-4 py-8 text-center md:container">
         <p className="text-muted-foreground">Traitement introuvable</p>
@@ -89,7 +89,7 @@ const PatientTreatmentView = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       <Navbar />
       <main className="px-4 py-4 pb-24 md:container md:py-8 md:pb-8">
         {/* Mobile Header */}
