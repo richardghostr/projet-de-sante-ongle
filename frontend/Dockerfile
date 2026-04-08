@@ -14,11 +14,11 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Small static server
-RUN npm install -g http-server
+# Small static server with SPA fallback support
+RUN npm install -g serve
 
 # Copy built assets
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
-CMD ["sh", "-c", "http-server ./dist -p 3000 -c-1"]
+CMD ["sh", "-c", "serve -s dist -l 3000"]
