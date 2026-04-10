@@ -60,6 +60,12 @@ const Analyze = () => {
   );
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  // Local simplified analysis result for immediate display
+  const [analysisResult, setAnalysisResult] = useState<{
+    diagnostic?: string;
+    confidence?: number; // 0..1
+    severity?: string;
+  } | null>(null);
   const [showTreatmentDialog, setShowTreatmentDialog] = useState(false);
   const [treatmentName, setTreatmentName] = useState("");
   const [treatmentNotes, setTreatmentNotes] = useState("");
@@ -107,6 +113,8 @@ const Analyze = () => {
     setStep("upload");
     setProgress(0);
     setResult(null);
+    setAnalysisResult(null);
+    setUploadResponse(null);
   };
 
   // Attach stream to video element when camera modal opens
@@ -294,13 +302,27 @@ const Analyze = () => {
         clearInterval(progressInterval);
         setProgress(100);
         // normalize response shape
-        const payload = data?.data ?? data;
-        setResult(payload?.result || payload);
-        setUploadResponse({
-          analysis_id: payload?.analysis_id || payload?.id,
-          uuid: payload?.uuid,
-          data: payload,
-        });
+          const payload = data?.data ?? data;
+          // keep original result for legacy usage
+          setResult(payload?.result || payload);
+          setUploadResponse({
+            analysis_id: payload?.analysis_id || payload?.id,
+            uuid: payload?.uuid,
+            data: payload,
+          });
+
+          // Normalize analysis fields for immediate display (robust to multiple shapes)
+          const raw = payload?.result ?? payload ?? {};
+          let diagnostic = raw.pathologie || raw.diagnostic || payload?.pathologie || null;
+          let confidence: number | undefined = undefined;
+          if (raw.score_confiance !== undefined) confidence = Number(raw.score_confiance);
+          else if (raw.score !== undefined) confidence = Number(raw.score);
+          else if (payload?.score_confiance !== undefined) confidence = Number(payload.score_confiance);
+          // Confidence may be expressed 0..1 or 0..100
+          if (confidence !== undefined && confidence > 1) confidence = confidence / 100;
+          const severity = raw.niveau_risque || raw.niveau || raw.severity || payload?.niveau_risque || null;
+
+          setAnalysisResult({ diagnostic: diagnostic ?? undefined, confidence: confidence ?? undefined, severity: severity ?? undefined });
         setTimeout(() => {
           setStep("results");
         }, 500);
@@ -333,6 +355,11 @@ const Analyze = () => {
 
     return map[risk] || "text-muted-foreground bg-muted";
   };
+
+  // Display helpers prefer immediate analysisResult when available
+  const displayDiagnostic = analysisResult?.diagnostic ?? (result?.result?.pathologie || (result as any)?.diagnostic);
+  const displayConfidence = (analysisResult?.confidence ?? (result?.result?.score_confiance || 0)) as number;
+  const displaySeverity = analysisResult?.severity ?? (result?.result?.niveau_risque || "");
 
   const handleStartTreatment = async () => {
     if (!treatmentName.trim()) {
@@ -641,33 +668,19 @@ const Analyze = () => {
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="rounded-xl border p-4 text-center">
-                    <p className="mb-1 text-xs text-muted-foreground">
-                      Diagnostic
-                    </p>
-                    <p className="text-sm font-semibold">
-                      {result.result?.pathologie || result.diagnostic || "—"}
-                    </p>
+                    <p className="mb-1 text-xs text-muted-foreground">Diagnostic</p>
+                    <p className="text-sm font-semibold">{displayDiagnostic || "—"}</p>
                   </div>
 
                   <div className="rounded-xl border p-4 text-center">
-                    <p className="mb-1 text-xs text-muted-foreground">
-                      Confiance
-                    </p>
-                    <p className="text-sm font-semibold">
-                      {Math.round((result.result?.score_confiance || 0) * 100)}%
-                    </p>
+                    <p className="mb-1 text-xs text-muted-foreground">Confiance</p>
+                    <p className="text-sm font-semibold">{Math.round((displayConfidence || 0) * 100)}%</p>
                   </div>
 
                   <div className="rounded-xl border p-4 text-center">
-                    <p className="mb-1 text-xs text-muted-foreground">
-                      Severite
-                    </p>
-                    <span
-                      className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${riskColor(
-                        result.result?.niveau_risque || "",
-                      )}`}
-                    >
-                      {result.result?.niveau_risque || "—"}
+                    <p className="mb-1 text-xs text-muted-foreground">Severite</p>
+                    <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${riskColor(displaySeverity || "")}`}>
+                      {displaySeverity || "—"}
                     </span>
                   </div>
                 </div>
@@ -686,7 +699,7 @@ const Analyze = () => {
                     <Card 
                         className="cursor-pointer border-2 border-transparent transition-all hover:border-primary hover:shadow-md min-h-[80px]"
                       onClick={async () => {
-                        const title = result.result?.pathologie || result.diagnostic || "Mon traitement";
+                        const title = displayDiagnostic || result.result?.pathologie || result.diagnostic || "Mon traitement";
                         try {
                           const resp = await createTreatmentMutation.mutateAsync({
                             titre: title,
@@ -772,7 +785,7 @@ const Analyze = () => {
                   </div>
 
                   {/* Risk Level Warning */}
-                  {(result.result?.niveau_risque === "eleve" || result.result?.niveau_risque === "critique") && (
+                  {(displaySeverity === "eleve" || displaySeverity === "critique") && (
                     <Card className="border-red-200 bg-red-50">
                       <CardContent className="flex items-start gap-4 p-4">
                         <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
@@ -823,15 +836,15 @@ const Analyze = () => {
                   />
                 </div>
 
-                {result && (
+                {(result || analysisResult) && (
                   <div className="rounded-lg border bg-muted/50 p-3">
                     <p className="text-sm text-muted-foreground">
                       <span className="font-medium">Condition detectee:</span>{" "}
-                      {result.result?.pathologie || result.diagnostic || "Non specifie"}
+                      {displayDiagnostic || 'Non specifie'}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       <span className="font-medium">Niveau de risque:</span>{" "}
-                      {result.result?.niveau_risque || "Non evalue"}
+                      {displaySeverity || 'Non evalue'}
                     </p>
                   </div>
                 )}
