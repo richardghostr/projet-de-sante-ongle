@@ -23,6 +23,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import useProtectedImage from '@/hooks/useProtectedImage';
 
 interface Treatment {
   uuid: string;
@@ -78,6 +79,22 @@ interface TreatmentStats {
 interface Photo {
   uuid: string;
   date_entry: string;
+}
+function ProtectedImg({
+  url,
+  alt,
+  className,
+  placeholderClass
+}: {
+  url?: string | null;
+  alt?: string;
+  className?: string;
+  placeholderClass?: string;
+}) {
+  const { src, loading, error } = useProtectedImage(url || null);
+  if (loading) return <div className={placeholderClass || 'rounded-lg bg-muted/30 animate-pulse'} />;
+  if (error || !src) return <div className="rounded-lg bg-muted-foreground/10 flex items-center justify-center text-xs text-muted-foreground">Erreur</div>;
+  return <img src={src} alt={alt || 'Photo'} className={className} />;
 }
 
 const TreatmentDetail = () => {
@@ -522,10 +539,11 @@ const EntryItem = ({ entry, treatmentUuid, onDelete }: { entry: TreatmentEntry; 
   return (
     <div className="flex gap-4 p-4">
       {entry.image_path && (
-        <img
-          src={api.getTreatmentPhotoUrl(treatmentUuid, entry.uuid, 'thumb')}
+        <ProtectedImg
+          url={api.getTreatmentPhotoUrl(treatmentUuid, entry.uuid, 'thumb')}
           alt="Photo"
           className="h-14 w-14 rounded-lg object-cover shrink-0"
+          placeholderClass="h-14 w-14 rounded-lg bg-muted/40 animate-pulse"
         />
       )}
       <div className="flex-1 min-w-0">
@@ -737,20 +755,22 @@ const PhotoCompare = ({ photo1, photo2, treatmentUuid }: { photo1: Photo; photo2
   return (
     <div className="grid grid-cols-2 gap-4">
       <div className="text-center">
-        <img
-          src={api.getTreatmentPhotoUrl(treatmentUuid, photo1.uuid)}
+        <ProtectedImg
+          url={api.getTreatmentPhotoUrl(treatmentUuid, photo1.uuid)}
           alt="Debut"
           className="w-full aspect-square object-cover rounded-lg"
+          placeholderClass="w-full aspect-square rounded-lg bg-muted/30 animate-pulse"
         />
         <p className="text-sm text-muted-foreground mt-2">
           Debut - {new Date(photo1.date_entry).toLocaleDateString('fr')}
         </p>
       </div>
       <div className="text-center">
-        <img
-          src={api.getTreatmentPhotoUrl(treatmentUuid, photo2.uuid)}
+        <ProtectedImg
+          url={api.getTreatmentPhotoUrl(treatmentUuid, photo2.uuid)}
           alt="Actuel"
           className="w-full aspect-square object-cover rounded-lg"
+          placeholderClass="w-full aspect-square rounded-lg bg-muted/30 animate-pulse"
         />
         <p className="text-sm text-muted-foreground mt-2">
           Actuel - {new Date(photo2.date_entry).toLocaleDateString('fr')}
@@ -829,11 +849,12 @@ const PhotoTimeline = ({ photos, treatmentUuid }: { photos: Photo[]; treatmentUu
       </DialogHeader>
       <div className="mt-4">
         <div className="relative aspect-square max-w-md mx-auto">
-          <img
-            src={api.getTreatmentPhotoUrl(treatmentUuid, photos[current].uuid)}
-            alt={`Photo ${current + 1}`}
-            className="w-full h-full object-cover rounded-lg"
-          />
+              <ProtectedImg
+                url={api.getTreatmentPhotoUrl(treatmentUuid, photos[current].uuid)}
+                alt={`Photo ${current + 1}`}
+                className="w-full h-full object-cover rounded-lg"
+                placeholderClass="w-full h-full rounded-lg bg-muted/30 animate-pulse"
+              />
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-background/90 rounded-full px-4 py-2">
             <span className="text-sm font-medium">
               {new Date(photos[current].date_entry).toLocaleDateString('fr')}
@@ -876,10 +897,11 @@ const PhotoTimeline = ({ photos, treatmentUuid }: { photos: Photo[]; treatmentUu
                 i === current ? 'border-primary' : 'border-transparent'
               }`}
             >
-              <img
-                src={api.getTreatmentPhotoUrl(treatmentUuid, photo.uuid, 'thumb')}
+              <ProtectedImg
+                url={api.getTreatmentPhotoUrl(treatmentUuid, photo.uuid, 'thumb')}
                 alt={`Thumbnail ${i + 1}`}
                 className="w-full h-full object-cover"
+                placeholderClass="w-full h-full bg-muted/30 animate-pulse"
               />
             </button>
           ))}
