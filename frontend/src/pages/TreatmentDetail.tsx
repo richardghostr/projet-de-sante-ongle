@@ -110,6 +110,17 @@ const TreatmentDetail = () => {
     const { toast } = useToast();
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [showWebcam, setShowWebcam] = useState(false);
+  const [webcamError, setWebcamError] = useState<string | null>(null);
   const [photoCompareOpen, setPhotoCompareOpen] = useState(false);
   const [addEntryOpen, setAddEntryOpen] = useState(false);
 
@@ -186,6 +197,152 @@ const TreatmentDetail = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // New handlers for gallery / camera selection that show preview first
+  const validateFile = (file: File) => {
+    setFileError(null);
+    const allowed = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowed.includes(file.type)) return 'Format non supporté (jpg/png uniquement)';
+    const maxBytes = 5 * 1024 * 1024;
+    if (file.size > maxBytes) return 'Fichier trop volumineux (max 5MB)';
+    return null;
+  };
+
+  const handleSelectFromGallery = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (!file) return;
+    const err = validateFile(file);
+    if (err) {
+      setFileError(err);
+      if (galleryInputRef.current) galleryInputRef.current.value = '';
+      return;
+    }
+    setSelectedFile(file);
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    setPreviewOpen(true);
+  };
+
+  const handleCapturePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (!file) return;
+    const err = validateFile(file);
+    if (err) {
+      setFileError(err);
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
+      return;
+    }
+    setSelectedFile(file);
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    setPreviewOpen(true);
+  };
+
+  const isMobileDevice = () => {
+    if (typeof navigator === 'undefined') return false;
+    const ua = navigator.userAgent || navigator.vendor || (window as any).opera || '';
+    return /Mobi|Android|iPhone|iPad|iPod|Phone/i.test(ua) || window.matchMedia?.('(pointer:coarse)').matches;
+  };
+
+  const handleTakePhotoClick = async () => {
+    if (isMobileDevice()) {
+      // let mobile input open camera via capture attr
+      cameraInputRef.current?.click();
+      return;
+    }
+    // desktop path: open webcam dialog and request camera
+    setWebcamError(null);
+    setShowWebcam(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch (err: any) {
+      console.error('Webcam error', err);
+      setWebcamError(err?.message || 'Impossible d\'accéder à la webcam');
+      // fallback to gallery input if webcam denied
+      if (galleryInputRef.current) galleryInputRef.current.click();
+    }
+  };
+
+  const stopWebcam = () => {
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.srcObject = null;
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    if (!showWebcam) stopWebcam();
+    return () => stopWebcam();
+  }, [showWebcam]);
+
+  const captureFromWebcam = async () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const w = video.videoWidth || 1280;
+    const h = video.videoHeight || 720;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, w, h);
+    return new Promise<void>((resolve) => {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          setWebcamError('Erreur lors de la capture');
+          resolve();
+          return;
+        }
+        const file = new File([blob], `capture_${Date.now()}.jpg`, { type: blob.type });
+        setSelectedFile(file);
+        const url = URL.createObjectURL(blob);
+        setPreviewUrl(url);
+        setPreviewOpen(true);
+        setShowWebcam(false);
+        stopWebcam();
+        resolve();
+      }, 'image/jpeg', 0.92);
+    });
+  };
+
+  const cancelPreview = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setSelectedFile(null);
+    setPreviewOpen(false);
+    setFileError(null);
+    if (galleryInputRef.current) galleryInputRef.current.value = '';
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
+  };
+
+  const sendSelectedPhoto = async () => {
+    if (!selectedFile) return;
+    setUploading(true);
+    try {
+      await api.uploadTreatmentPhoto(uuid!, selectedFile, { date_entry: new Date().toISOString().split('T')[0] });
+      toast({ title: 'Succès', description: 'Photo envoyée' });
+      cancelPreview();
+      loadTreatment();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue';
+      toast({ title: 'Erreur', description: message });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const statusColor = (status: string) => {
     const m: Record<string, string> = {
       active: 'bg-emerald-100 text-emerald-700',
@@ -243,18 +400,34 @@ const TreatmentDetail = () => {
               {treatment.date_fin_prevue && ` · Fin prévue : ${new Date(treatment.date_fin_prevue).toLocaleDateString('fr')}`}
             </p>
             <div className="flex flex-wrap gap-2 mt-1">
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
+              <input
+                type="file"
+                ref={galleryInputRef}
+                className="hidden"
                 accept="image/*"
-                onChange={handlePhotoUpload}
-                aria-label="Upload treatment photo"
-                title="Upload treatment photo"
+                onChange={(e) => handleSelectFromGallery(e)}
+                aria-label="Choisir depuis la galerie"
               />
-              <Button variant="outline" className="h-11 flex-1 gap-2 min-w-[140px]" onClick={() => fileInputRef.current?.click()}>
-                <Camera className="h-4 w-4" /> Photo
-              </Button>
+              <input
+                type="file"
+                ref={cameraInputRef}
+                className="hidden"
+                accept="image/*"
+                capture="environment"
+                onChange={(e) => handleCapturePhoto(e)}
+                aria-label="Prendre une photo"
+              />
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="h-11 flex-1 gap-2 min-w-[140px]"><Camera className="h-4 w-4" /> Ajouter une image</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                      <DropdownMenuItem onClick={() => galleryInputRef.current?.click()}>Choisir depuis la galerie</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleTakePhotoClick()}>Prendre une photo</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Dialog open={addEntryOpen} onOpenChange={setAddEntryOpen}>
                 <DialogTrigger asChild>
                   <Button className="h-11 flex-1 gap-2 min-w-[140px]"><Plus className="h-4 w-4" /> Entrée</Button>
@@ -263,6 +436,7 @@ const TreatmentDetail = () => {
                   <AddEntryForm uuid={uuid!} onSuccess={() => { setAddEntryOpen(false); loadTreatment(); }} />
                 </DialogContent>
               </Dialog>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
@@ -292,7 +466,44 @@ const TreatmentDetail = () => {
           </div>
         </div>
 
-        {/* Stats cards */}
+            <Dialog open={showWebcam} onOpenChange={setShowWebcam}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Webcam</DialogTitle>
+                </DialogHeader>
+                {webcamError && <p className="text-sm text-red-600">{webcamError}</p>}
+                <div className="mt-2">
+                  <div className="w-full h-64 bg-black rounded-md overflow-hidden">
+                    <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
+                  </div>
+                </div>
+                <div className="mt-4 flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => { setShowWebcam(false); stopWebcam(); }}>Annuler</Button>
+                  <Button onClick={async () => { await captureFromWebcam(); }}>Capturer</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Prévisualisation</DialogTitle>
+                </DialogHeader>
+                <p className="text-sm text-muted-foreground">Prenez une photo nette, bien éclairée et centrée sur votre ongle</p>
+                {previewUrl ? (
+                  <img src={previewUrl} alt="Prévisualisation" className="w-full mt-4 rounded-lg object-contain" />
+                ) : (
+                  <div className="w-full mt-4 h-40 rounded-lg bg-muted/30 flex items-center justify-center">Aucune image</div>
+                )}
+                {fileError && <p className="text-sm text-red-600 mt-2">{fileError}</p>}
+                <div className="mt-4 flex gap-2 justify-end">
+                  <Button variant="outline" onClick={cancelPreview}>Supprimer</Button>
+                  <Button onClick={sendSelectedPhoto} disabled={uploading || !selectedFile}>{uploading ? 'Envoi...' : 'Envoyer'}</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Stats cards */}
         {stats && (
           <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
             <StatCard label="Durée" value={`${stats.duree_jours}j`} icon={Calendar} color="text-blue-600" />
